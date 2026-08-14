@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PEN Group — Software Engineering Organisation Structure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pen-navy:#12385F; --pen-blue:#2E6FB0; --pen-blue-d:#1F5488;
+    --pen-green:#4C9A54; --pen-gold:#C9A227; --pen-purple:#7A4E9E;
+    --canvas:#F4F7FA; --paper:#FFFFFF; --ink:#1B2C3E; --muted:#607080; --line:#B7C4D0;
+    --cat-fill:#E7EEF5; --cat-border:#CBDBE8; --web:#2E6FB0; --qa:#4C9A54; --tbd:#93A2B0;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ min-width:1728px; background:var(--canvas); color:var(--ink); font-family:"Inter",system-ui,sans-serif; -webkit-font-smoothing:antialiased; line-height:1.45; }
+  .page{ max-width:1680px; margin:0 auto; padding:0 24px 56px; }
+
+  .doc-head{ background:linear-gradient(105deg,var(--pen-navy),var(--pen-blue-d)); color:#fff; border-radius:0 0 16px 16px;
+    padding:22px 32px 20px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+    box-shadow:0 6px 20px rgba(18,56,95,.18); }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .pmark{ width:42px; height:42px; flex:none; }
+  .wm{ display:flex; flex-direction:column; line-height:1; border-left:1px solid rgba(255,255,255,.3); padding-left:14px; }
+  .wm b{ font-family:"Poppins",sans-serif; font-weight:700; font-size:20px; letter-spacing:.04em; }
+  .wm span{ font-family:"Poppins",sans-serif; font-weight:600; font-size:20px; letter-spacing:.04em; color:#DCE6F0; }
+  .meta{ text-align:right; }
+  .meta .title{ font-family:"Poppins",sans-serif; font-weight:600; font-size:19px; }
+  .meta .conf{ font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--pen-gold); margin-top:3px; }
+
+  .intro{ margin:24px 2px 6px; }
+  .intro h1{ font-family:"Poppins",sans-serif; font-weight:600; font-size:24px; margin:0; color:var(--pen-navy); }
+  .intro h1 .u{ display:block; width:52px; height:3px; background:var(--pen-gold); border-radius:2px; margin-top:9px; }
+  .intro p{ font-size:13px; color:var(--muted); margin:12px 0 0; max-width:700px; }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:15px; margin:16px 2px 0; padding:13px 0 0; border-top:1px solid #DCE6EE; }
+  .legend span{ display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); }
+  .sw{ width:12px; height:12px; border-radius:3px; flex:none; }
+  .sw.ai{ background:var(--pen-purple); } .sw.uk{ background:var(--pen-blue); } .sw.qa{ background:var(--pen-green); }
+  .sw.os{ background:var(--pen-navy); } .sw.del{ background:var(--cat-fill); border:1px solid var(--cat-border); }
+
+  .org-scroll{ overflow-x:auto; margin-top:22px; padding:6px 2px 14px; }
+  .org{ width:max-content; min-width:100%; display:flex; flex-direction:column; align-items:stretch; }
+
+  .band{ border-radius:11px; padding:13px 24px; color:#fff; display:flex; align-items:baseline; justify-content:center; gap:13px; flex-wrap:wrap;
+    text-align:center; box-shadow:0 3px 12px rgba(18,56,95,.16); }
+  .band.os{ background:var(--pen-navy); border-top:3px solid var(--pen-gold); }
+  .band.ai-band{ background:linear-gradient(105deg,#6C4593,#8A5CAC); border-top:3px solid var(--pen-gold); }
+  .band.uk-band{ background:linear-gradient(105deg,#255F97,#2E6FB0); border-top:3px solid var(--pen-gold); }
+  .band .btag{ font-family:"Poppins",sans-serif; font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.18); color:#fff; }
+  .band .bname{ font-family:"Poppins",sans-serif; font-weight:600; font-size:17px; }
+  .band .bmeta{ font-size:12.5px; color:rgba(255,255,255,.8); }
+
+  .stem{ width:2px; height:22px; background:var(--line); margin:0 auto; }
+  .divider{ height:1px; background:#DAE4EC; margin:28px 0 2px; }
+  .layer-title{ font-family:"Poppins",sans-serif; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-align:center; margin:14px 0 0; }
+  .pillar-cap{ font-family:"Poppins",sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); text-align:center; margin-bottom:2px; }
+
+  .uk-layer{ display:flex; justify-content:center; align-items:stretch; gap:46px; margin-top:0; }
+  .uk-col{ position:relative; display:flex; flex-direction:column; align-items:center; padding-top:22px; }
+  .uk-col::before, .uk-col::after{ content:''; position:absolute; top:0; right:50%; width:50%; height:22px; border-top:2px solid var(--line); }
+  .uk-col::after{ right:auto; left:50%; border-left:2px solid var(--line); }
+  .uk-col:first-child::before{ border:0 none; }
+  .uk-col:last-child::after{ border:0 none; }
+  .uk-col:last-child::before{ border-right:2px solid var(--line); }
+  .uk-col .drop{ width:0; border-left:2px solid var(--line); flex:1 0 22px; min-height:22px; }
+
+  .chart{ align-self:center; }
+  .chart ul{ position:relative; padding:22px 0 0; margin:0; display:flex; justify-content:center; list-style:none; }
+  .chart li{ position:relative; padding:22px 8px 0; list-style:none; display:flex; flex-direction:column; align-items:center; }
+  .chart li::before, .chart li::after{ content:''; position:absolute; top:0; right:50%; width:50%; height:22px; border-top:2px solid var(--line); }
+  .chart li::after{ right:auto; left:50%; border-left:2px solid var(--line); }
+  .chart li:only-child::before, .chart li:only-child::after{ display:none; }
+  .chart li:only-child{ padding-top:22px; }
+  .chart li:first-child::before, .chart li:last-child::after{ border:0 none; }
+  .chart li:last-child::before{ border-right:2px solid var(--line); }
+  .chart ul ul::before{ content:''; position:absolute; top:0; left:50%; width:0; height:22px; border-left:2px solid var(--line); }
+  .chart > ul{ padding-top:0; }
+
+  .node{ width:158px; border-radius:10px; padding:11px 13px; color:#fff; box-shadow:0 3px 8px rgba(18,56,95,.16); text-align:left; }
+  .ntag{ display:inline-block; font-family:"Poppins",sans-serif; font-size:8.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border-radius:999px; margin-bottom:6px; background:rgba(255,255,255,.2); color:#fff; }
+  .nname{ font-family:"Poppins",sans-serif; font-weight:600; font-size:15px; margin:0; }
+  .nrole{ font-size:11px; color:rgba(255,255,255,.82); margin:2px 0 0; }
+  .nsub{ font-size:10.5px; color:rgba(255,255,255,.82); margin:5px 0 0; font-style:italic; }
+  .node.ai{ background:var(--pen-purple); }
+  .node.aihead{ background:#5E3B82; }
+  .node.uk{ background:var(--pen-blue); }
+  .node.ukhead{ background:var(--pen-blue-d); }
+  .node.qahead{ background:#3C7E43; }
+  .node.qa-candidate{ background:#86BD8C; border:1px solid #659E6C; color:#173B21; box-shadow:0 3px 8px rgba(60,126,67,.16); }
+  .node.qa-candidate .ntag{ background:rgba(255,255,255,.4); border:1px solid rgba(36,83,44,.18); color:#24532C; }
+  .node.qa-candidate .nname{ color:#173B21; }
+  .node.qa-candidate .nrole{ color:#2F5E36; }
+  .node.nh{ background:var(--paper); border:1.5px dashed #AFC0CE; color:var(--tbd); box-shadow:none; }
+  .node.nh .ntag{ background:transparent; border:1px dashed #C0CEDA; color:var(--tbd); }
+  .node.nh .nname{ color:var(--tbd); } .node.nh .nrole{ color:var(--tbd); }
+  .node.nh.interviewing{ background:#FFFDF5; border:1.5px solid var(--pen-gold); box-shadow:0 3px 10px rgba(201,162,39,.13); }
+  .node.nh.interviewing .ntag{ background:rgba(201,162,39,.12); border:1px solid rgba(201,162,39,.42); color:#856616; }
+  .node.nh.interviewing .nname{ color:var(--pen-navy); }
+  .node.nh.interviewing .nrole{ color:var(--muted); }
+  .node.nh.interviewing .nsub{ color:#856616; font-style:normal; font-weight:600; }
+
+  .chart li.catcol{ align-items:stretch; padding-left:8px; padding-right:8px; }
+  .cbox{ width:196px; border-radius:10px; overflow:hidden; border:1px solid var(--cat-border); background:var(--cat-fill); box-shadow:0 2px 6px rgba(18,56,95,.07); }
+  .cbox .cname{ font-family:"Poppins",sans-serif; font-weight:600; font-size:14px; color:var(--pen-navy); padding:10px 13px 2px; }
+  .cbox .clead{ font-size:10.5px; color:var(--pen-blue-d); padding:0 13px 9px; }
+  .cbox .clead.tbd{ font-style:italic; color:#8496a5; }
+
+  .ladder{ position:relative; width:196px; margin-top:14px; padding-left:18px; }
+  .ladder::before{ content:''; position:absolute; left:8px; top:-14px; bottom:16px; width:2px; background:var(--line); }
+  .lit{ position:relative; margin-bottom:11px; }
+  .lit:last-child{ margin-bottom:0; }
+  .lit::before{ content:''; position:absolute; left:-10px; top:18px; width:10px; height:2px; background:var(--line); }
+
+  .pbox{ width:178px; border-radius:8px; background:var(--paper); border:1px solid #D9E4EC; box-shadow:0 1px 4px rgba(18,56,95,.05); overflow:hidden; }
+  .pbox .ph{ background:#EAF1F7; padding:7px 11px; font-family:"Poppins",sans-serif; font-weight:600; font-size:12px; color:var(--pen-navy); }
+  .pbox .pp{ padding:7px 11px 8px; display:flex; flex-wrap:wrap; gap:4px; }
+  .who{ display:inline-block; font-size:10px; font-weight:500; line-height:1.35; padding:2px 7px; border-radius:5px; cursor:default; }
+  .who.dev{ background:#E4E9EE; color:#42536A; }
+  .who.web{ background:rgba(46,111,176,.16); color:#1F5488; }
+  .who.support{ background:rgba(76,154,84,.18); color:#2f6b36; }
+  .who.qa{ background:rgba(201,162,39,.22); color:#856616; }
+  .who.dev.joining{ background:#D8E7F4; color:#24577E; box-shadow:inset 0 0 0 1px #BDD2E4; }
+  .who .offer-note{ display:inline-block; margin-left:4px; padding-left:5px; border-left:1px solid #9EBED7; color:#2F6B36; font-size:8px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+  .role-legend{ display:flex; flex-wrap:wrap; align-items:center; gap:15px; margin-top:16px; padding:12px 16px; background:var(--paper); border:1px solid #DCE6EE; border-radius:10px; }
+  .role-legend .rl-lbl{ font-family:"Poppins",sans-serif; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .role-legend .rl{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink); }
+  .role-legend .sw-role{ width:16px; height:16px; border-radius:4px; }
+  .sw-role.dev{ background:#E4E9EE; } .sw-role.web{ background:rgba(46,111,176,.16); }
+  .sw-role.support{ background:rgba(76,154,84,.18); } .sw-role.qa{ background:rgba(201,162,39,.22); }
+  .role-legend .rl-hint{ font-size:11.5px; color:var(--muted); font-style:italic; }
+  .pbox.none .ph{ color:#93a2b0; background:#EEF3F8; }
+  .pbox .status{ display:inline-block; margin:6px 11px 2px; font-size:8px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:1px 6px; border-radius:999px; border:1px solid #C7D3DD; color:#8496a5; }
+
+  .mini{ font-size:7.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:1px 5px; border-radius:999px; margin-left:3px; vertical-align:1px; }
+  .mini.dev{ background:#E9E7DF; color:#6f6550; }
+  .mini.web{ background:rgba(46,111,176,.14); color:var(--pen-blue); }
+  .mini.support{ background:rgba(76,154,84,.16); color:var(--pen-green); }
+  .mini.qa{ background:rgba(201,162,39,.20); color:#977a1a; }
+  .mini.ui{ background:rgba(122,78,158,.15); color:var(--pen-purple); }
+
+  .need{ padding:7px 11px 9px; border-top:1px dashed #E4EAF0; }
+  .need-lbl{ display:block; font-size:8px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:#9aa7b3; margin-bottom:4px; }
+  .nchips{ display:flex; flex-wrap:wrap; gap:4px; }
+  .nchip{ display:inline-flex; align-items:center; gap:3px; font-size:9.5px; color:#5a6b7c; border:1px solid #D6DEE6; border-radius:999px; padding:1px 7px; }
+  .nchip b{ font-weight:700; color:var(--ink); }
+  .nchip.joining{ background:#D8E7F4; border-color:#BDD2E4; color:#24577E; }
+  .nchip.joining b{ color:#24577E; }
+  .nchip.zero{ color:#aeb8c2; } .nchip.zero b{ color:#aeb8c2; }
+  .shd{ font-size:7px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--pen-green); margin-left:2px; }
+
+  /* Websites portfolio */
+  .catcol.web-col .cbox, .catcol.web-col .ladder{ width:236px; }
+  .catcol.web-col .pbox{ width:218px; }
+  .sitebox .sitelist{ padding:3px 12px 9px; }
+  .site{ padding:5px 0; border-top:1px solid #EFF3F8; }
+  .site:first-child{ border-top:0; }
+  .site .sn{ display:block; font-size:11px; color:var(--ink); font-weight:500; line-height:1.3; }
+  .site .sd{ display:block; font-size:9px; color:#93a2b0; }
+  .site .sd.none{ font-style:italic; }
+  .sitebox > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 11px; font-family:"Poppins",sans-serif; font-weight:600; font-size:12px; color:var(--pen-navy); background:#EAF1F7; }
+  .sitebox > summary::-webkit-details-marker{ display:none; }
+  .sitebox .sm-r{ display:inline-flex; align-items:center; gap:8px; }
+  .sitebox .cnt{ font-size:10px; font-weight:700; background:rgba(18,56,95,.10); color:var(--pen-navy); border-radius:999px; padding:1px 7px; min-width:20px; text-align:center; }
+  .sitebox .chev{ width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(-45deg); transition:transform .15s ease; opacity:.5; }
+  .sitebox[open] > summary .chev{ transform:rotate(45deg); }
+  .pbox.sitebox.live > summary{ background:rgba(76,154,84,.14); color:#2f6b36; }
+  .pbox.sitebox.live .cnt{ background:rgba(76,154,84,.22); color:#2f6b36; }
+  .pbox.sitebox.prog > summary{ background:rgba(201,162,39,.16); color:#8a6d16; }
+  .pbox.sitebox.prog .cnt{ background:rgba(201,162,39,.26); color:#8a6d16; }
+  .pbox.sitebox.redir > summary{ background:#EDF1F5; color:#5a6b7a; }
+  .pbox.sitebox.none > summary{ background:#EEF3F8; color:#8496a5; }
+  .pbox.sitebox.none .cnt{ background:rgba(120,135,150,.18); color:#7a8794; }
+
+  /* totals */
+  .totals{ margin-top:30px; }
+  .totals h2{ font-family:"Poppins",sans-serif; font-size:17px; font-weight:600; color:var(--pen-navy); margin:0 0 4px; }
+  .totals .u{ display:block; width:44px; height:3px; background:var(--pen-gold); border-radius:2px; margin:0 0 12px; }
+  .ttbl{ width:100%; border-collapse:collapse; font-size:12.5px; background:var(--paper); border:1px solid #DCE6EE; border-radius:10px; overflow:hidden; }
+  .ttbl th{ text-align:left; font-family:"Poppins",sans-serif; font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:11px 14px; background:#EEF3F8; border-bottom:1px solid #DCE6EE; }
+  .ttbl td{ padding:11px 14px; border-bottom:1px solid #EAF0F6; color:var(--ink); }
+  .ttbl th.num, .ttbl td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .ttbl td.rowlbl{ font-weight:600; }
+  .ttbl tr:last-child td{ border-bottom:0; }
+  .ttbl tr.total td{ font-weight:700; color:var(--pen-navy); background:#EAF1F7; }
+  .foot-note{ font-size:11px; color:var(--muted); margin:10px 2px 0; font-style:italic; }
+
+  .doc-foot{ margin-top:30px; border-top:2px solid var(--pen-navy); padding-top:16px; font-size:11.5px; color:var(--muted); line-height:1.7; }
+  .doc-foot .co{ font-family:"Poppins",sans-serif; font-weight:600; color:var(--ink); font-size:12.5px; }
+  .doc-foot .conf{ color:var(--pen-gold); font-weight:600; letter-spacing:.04em; }
+
+  @media (max-width:600px){ body{ min-width:0; } .doc-head{ padding:18px 20px 16px; } .meta{ text-align:left; } .page{ padding:0 14px 44px; } }
+</style>
+</head>
+<body>
+
+  <header class="doc-head">
+    <div class="brand">
+      <svg class="pmark" viewBox="0 0 100 100" aria-label="PEN Group">
+        <circle cx="50" cy="24" r="15" fill="#2E6FB0"/>
+        <circle cx="73" cy="38" r="15" fill="#4C9A54"/>
+        <circle cx="73" cy="64" r="15" fill="#C9A227"/>
+        <circle cx="50" cy="78" r="15" fill="#7A4E9E"/>
+        <circle cx="27" cy="64" r="15" fill="#D24B3E"/>
+        <circle cx="27" cy="38" r="15" fill="#2E6FB0"/>
+        <circle cx="50" cy="51" r="13" fill="#F4F7FA"/>
+      </svg>
+      <div class="wm"><b>PEN</b><span>GROUP</span></div>
+    </div>
+    <div class="meta">
+      <div class="title">Software Engineering</div>
+      <div class="conf">Organisation Structure &middot; Confidential</div>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="intro">
+      <h1>Organisation Structure<span class="u"></span></h1>
+      <p>AI Innovation operates as a dedicated team. UK Software Engineering handles management &amp; research, running in parallel with System Admin &amp; QA; both connect down to the overseas delivery team. Each project shows its current people and the additional hires still needed, summarised in the staffing totals below.</p>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw ai"></i> AI Innovation</span>
+      <span><i class="sw uk"></i> UK &mdash; management &amp; research</span>
+      <span><i class="sw qa"></i> System Admin / QA</span>
+      <span><i class="sw os"></i> Overseas &mdash; head</span>
+      <span><i class="sw del"></i> Overseas &mdash; delivery</span>
+    </div>
+
+    <div class="org-scroll">
+      <div class="org">
+
+        <!-- AI Innovation -->
+        <div class="band ai-band">
+          <span class="btag">AI Innovation Team</span>
+          <span class="bname">AI Innovation</span>
+          <span class="bmeta">Research &amp; innovation</span>
+        </div>
+        <div class="stem"></div>
+        <div class="chart">
+          <ul>
+            <li>
+              <div class="node aihead"><span class="ntag">AI</span><p class="nname">Moshfiqur</p><p class="nrole">Lead</p></div>
+              <ul>
+                <li><div class="node ai"><span class="ntag">AI</span><p class="nname">Richard</p></div></li>
+                <li><div class="node ai"><span class="ntag">AI</span><p class="nname">Doncho</p></div></li>
+                <li><div class="node ai"><span class="ntag">AI</span><p class="nname">Chinmoy</p></div></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div class="divider"></div>
+        <div class="band uk-band">
+          <span class="btag">UK</span>
+          <span class="bname">Software Engineering &amp; Quality</span>
+          <span class="bmeta">Management, research &amp; QA</span>
+        </div>
+        <div class="stem"></div>
+
+        <div class="uk-layer">
+          <div class="uk-col">
+            <div class="pillar-cap">Software Engineering &middot; UK</div>
+            <div class="chart">
+              <ul>
+                <li>
+                  <div class="node ukhead"><span class="ntag">UK</span><p class="nname">Ansley</p><p class="nrole">Software Engineering UK</p><p class="nsub">Management &amp; research</p></div>
+                  <ul>
+                    <li><div class="node uk"><span class="ntag">UK</span><p class="nname">Sharif</p><p class="nrole">Project Manager</p></div></li>
+                    <li><div class="node uk"><span class="ntag">UK</span><p class="nname">Frederick</p><p class="nrole">Project Manager</p></div></li>
+                    <li><div class="node nh interviewing"><span class="ntag">UK</span><p class="nname">New hire 1</p><p class="nrole">Project Manager</p><p class="nsub">Interview On-going</p></div></li>
+                    <li><div class="node nh interviewing"><span class="ntag">UK</span><p class="nname">New hire 2</p><p class="nrole">Project Manager</p><p class="nsub">Interview On-going</p></div></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+            <div class="drop"></div>
+          </div>
+
+          <div class="uk-col">
+            <div class="pillar-cap">System Admin &amp; QA</div>
+            <div class="chart">
+              <ul>
+                <li>
+                  <div class="node qahead"><span class="ntag">UK</span><p class="nname">Showmita</p><p class="nrole">System Admin &middot; QA &middot; Support</p></div>
+                  <ul>
+                    <li><div class="node qa-candidate"><span class="ntag">UK</span><p class="nname">Timmy Kayode</p><p class="nrole">System Admin &middot; QA &middot; Support</p></div></li>
+                    <li><div class="node nh"><span class="ntag">UK</span><p class="nname">New hire</p><p class="nrole">System Admin &middot; QA &middot; Support</p></div></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+            <div class="drop"></div>
+          </div>
+        </div>
+
+        <!-- Overseas delivery -->
+        <div class="band os">
+          <span class="btag">Overseas</span>
+          <span class="bname">Head of Software Engineering</span>
+        </div>
+        <div class="stem"></div>
+
+        <div class="chart">
+          <ul>
+            <!-- Education -->
+            <li class="catcol">
+              <div class="cbox">
+                <div class="cname">Education</div><div class="clead">Lead: Rashed</div>
+                <div class="need"><span class="need-lbl">Project assignments</span><span class="nchips"><span class="nchip"><b>14</b> Dev</span><span class="nchip joining"><b>2</b> New joinees</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip"><b>4</b> Support</span></span></div>
+              </div>
+              <div class="ladder">
+                <div class="lit"><div class="pbox">
+                  <div class="ph">MOODLE</div>
+                  <div class="pp"><span class="who dev" title="DEV">Wahidul</span><span class="who support" title="SUPPORT">Sagor</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip"><b>1</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip"><b>2</b> Support<span class="shd">Shared</span></span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Nova Pathways</div>
+                  <div class="pp"><span class="who dev" title="DEV">Rasheduzzaman</span><span class="who dev" title="DEV">Faisal</span><span class="who dev" title="DEV">Abu Hena Chowdhury</span><span class="who dev" title="DEV">Ziaul Haque</span><span class="who dev" title="DEV">Sourav Saha</span><span class="who web" title="WEB">Anthokiya</span><span class="who support" title="SUPPORT">Sidratul</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip"><b>4</b> Dev</span><span class="nchip"><b>3</b> QA</span><span class="nchip"><b>1</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Univive</div>
+                  <div class="pp"><span class="who dev" title="DEV">Atanu Barua</span><span class="who dev" title="DEV">Rahat Yasin</span><span class="who support" title="SUPPORT">Dipto</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip"><b>1</b> Dev</span><span class="nchip"><b>1</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">EducateU</div>
+                  <div class="pp"><span class="who dev" title="DEV">Irfanul Karim</span><span class="who dev" title="DEV">Tareq</span><span class="who dev" title="DEV">Syed</span><span class="who dev" title="DEV">Ainul Hussain</span><span class="who web" title="WEB">Sadika</span><span class="who support" title="SUPPORT">Tanbir</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip"><b>1</b> Dev</span><span class="nchip"><b>1</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">SIMS</div>
+                  <div class="pp"><span class="who dev" title="DEV">Abdulla Zuahir</span><span class="who dev" title="DEV">Abdul Alim</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip"><b>2</b> Support<span class="shd">Shared</span></span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox none">
+                  <div class="ph">AI Employment University</div>
+                </div></div>
+                <div class="lit"><div class="pbox none">
+                  <div class="ph">AIQQA</div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip"><b>4</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox none">
+                  <div class="ph">Nelo Education</div>
+                  <div class="pp"><span class="who dev joining" title="DEV · New joinee">New joinee</span><span class="who dev joining" title="DEV · New joinee">New joinee</span></div>
+                </div></div>
+              </div>
+            </li>
+
+            <!-- Internal Tools -->
+            <li class="catcol">
+              <div class="cbox">
+                <div class="cname">Internal Tools</div><div class="clead">Lead: Rintu</div>
+                <div class="need"><span class="need-lbl">Project assignments</span><span class="nchips"><span class="nchip"><b>2</b> Dev</span><span class="nchip zero"><b>0</b> New joinees</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+              </div>
+              <div class="ladder">
+                <div class="lit"><div class="pbox">
+                  <div class="ph">HR</div>
+                  <div class="pp"><span class="who dev" title="DEV">Rintu</span><span class="who dev" title="DEV">Aslam</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip"><b>1</b> QA<span class="shd">Shared</span></span><span class="nchip"><b>1</b> Support<span class="shd">Shared</span></span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Procurement</div>
+                  <div class="pp"><span class="who dev" title="DEV">Mahin Tazuar</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip"><b>1</b> QA<span class="shd">Shared</span></span><span class="nchip"><b>1</b> Support<span class="shd">Shared</span></span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Ticketing System</div>
+                  <div class="pp"><span class="who web" title="WEB">Mishkat</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">PMA</div>
+                  <div class="pp"><span class="who dev" title="DEV">Syed Shafaet Hossain</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Accounts</div>
+                  <div class="pp"><span class="who dev" title="DEV">Abdulla Zuahir</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip"><b>1</b> QA<span class="shd">Shared</span></span><span class="nchip"><b>1</b> Support<span class="shd">Shared</span></span></span></div>
+                </div></div>
+              </div>
+            </li>
+
+            <!-- B2C -->
+            <li class="catcol">
+              <div class="cbox">
+                <div class="cname">B2C</div><div class="clead tbd">Lead: to confirm</div>
+                <div class="need"><span class="need-lbl">Project assignments</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip joining"><b>6</b> New joinees</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+              </div>
+              <div class="ladder">
+                <div class="lit"><div class="pbox">
+                  <div class="ph">Flight Eye</div>
+                  <div class="pp"><span class="who dev" title="DEV">Abu</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox">
+                  <div class="ph">CortexGrip</div>
+                  <div class="pp"><span class="who web" title="WEB">Hasibul</span><span class="who dev joining" title="DEV · New joinee · Offer sent">New joinee<span class="offer-note">Offer sent</span></span><span class="who dev joining" title="DEV · New joinee · Offer sent">New joinee<span class="offer-note">Offer sent</span></span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox none">
+                  <div class="ph">Job Hunger</div>
+                  <div class="pp"><span class="who dev joining" title="DEV · New joinee · Offer sent">New joinee<span class="offer-note">Offer sent</span></span><span class="who dev joining" title="DEV · New joinee · Offer sent">New joinee<span class="offer-note">Offer sent</span></span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip zero"><b>0</b> QA</span><span class="nchip zero"><b>0</b> Support</span></span></div>
+                </div></div>
+                <div class="lit"><div class="pbox none">
+                  <div class="ph">Property Scanner</div>
+                  <span class="status">Not started</span>
+                  <div class="pp"><span class="who dev joining" title="DEV · New joinee">New joinee</span><span class="who dev joining" title="DEV · New joinee">New joinee</span></div>
+                  <div class="need"><span class="need-lbl">More needed</span><span class="nchips"><span class="nchip zero"><b>0</b> Dev</span><span class="nchip"><b>1</b> QA</span><span class="nchip"><b>1</b> Support</span></span></div>
+                </div></div>
+              </div>
+            </li>
+
+            <!-- Websites -->
+            <li class="catcol web-col">
+              <div class="cbox"><div class="cname">Websites</div><div class="clead">Lead: Nazmul / Mishkat</div></div>
+              <div class="ladder">
+                <div class="lit"><details class="pbox sitebox live">
+                  <summary><span>Live</span><span class="sm-r"><span class="cnt">28</span><span class="chev"></span></span></summary>
+                  <div class="sitelist">
+                    <div class="site"><span class="sn">Brain Gain Focus</span><span class="sd">braingainfocus.com</span></div>
+                    <div class="site"><span class="sn">City Language Hub</span><span class="sd">citylanguagehub.com</span></div>
+                    <div class="site"><span class="sn">City Language School</span><span class="sd">citylanguageschool.co.uk</span></div>
+                    <div class="site"><span class="sn">Cortexgrip</span><span class="sd">cortexgrip.com</span></div>
+                    <div class="site"><span class="sn">EducateU</span><span class="sd">educateu.com</span></div>
+                    <div class="site"><span class="sn">Elizabeth School of London</span><span class="sd">esl.ac.uk</span></div>
+                    <div class="site"><span class="sn">Flighteye</span><span class="sd">flighteye.com</span></div>
+                    <div class="site"><span class="sn">Go Uniway</span><span class="sd">gouniway.com</span></div>
+                    <div class="site"><span class="sn">Horizon Education Services</span><span class="sd">horizoneduservices.com</span></div>
+                    <div class="site"><span class="sn">London Professional College</span><span class="sd">lpc.ac.uk</span></div>
+                    <div class="site"><span class="sn">Meridian Educational Services</span><span class="sd">meridianeduservices.com</span></div>
+                    <div class="site"><span class="sn">Nova Pathways</span><span class="sd">novapathways.co.uk</span></div>
+                    <div class="site"><span class="sn">Paramount Educational Services</span><span class="sd">paramounteduservices.com</span></div>
+                    <div class="site"><span class="sn">PEN Group</span><span class="sd">pengroup.com</span></div>
+                    <div class="site"><span class="sn">Pinnacle Education Services</span><span class="sd">pinnacleeduservices.com</span></div>
+                    <div class="site"><span class="sn">Spectrum Education Services</span><span class="sd">spectrumeduservices.com</span></div>
+                    <div class="site"><span class="sn">Stedvarn</span><span class="sd">stedvarn.com</span></div>
+                    <div class="site"><span class="sn">Stronger Together Investment</span><span class="sd">stic.uk</span></div>
+                    <div class="site"><span class="sn">Trusted Edu Path</span><span class="sd">trustededupath.com</span></div>
+                    <div class="site"><span class="sn">Uni Aptix</span><span class="sd">uniaptix.com</span></div>
+                    <div class="site"><span class="sn">Uni Talent Network</span><span class="sd">unitalentnetwork.com</span></div>
+                    <div class="site"><span class="sn">Univive</span><span class="sd">universityapplicationportal.com</span></div>
+                    <div class="site"><span class="sn">Uniway Connect</span><span class="sd">uniwayconnect.com</span></div>
+                    <div class="site"><span class="sn">Victoria College of Arts &amp; Design</span><span class="sd">vcad.ac.uk</span></div>
+                    <div class="site"><span class="sn">William College</span><span class="sd">williamcollege.com</span></div>
+                    <div class="site"><span class="sn">Wonderful Night Sleep Hotel</span><span class="sd">wnsh.co.uk</span></div>
+                    <div class="site"><span class="sn">Zenith Academic of Healthcare Studies</span><span class="sd">zahs.co.uk</span></div>
+                    <div class="site"><span class="sn">Zeta System of SmartLearning</span><span class="sd">zsos.co.uk</span></div>
+                  </div>
+                </details></div>
+                <div class="lit"><details class="pbox sitebox prog">
+                  <summary><span>In progress</span><span class="sm-r"><span class="cnt">2</span><span class="chev"></span></span></summary>
+                  <div class="sitelist">
+                    <div class="site"><span class="sn">Civitas Living Hub</span><span class="sd none">domain to confirm</span></div>
+                    <div class="site"><span class="sn">Transnational Education</span><span class="sd none">domain to confirm</span></div>
+                  </div>
+                </details></div>
+                <div class="lit"><details class="pbox sitebox none">
+                  <summary><span>Not started</span><span class="sm-r"><span class="cnt">6</span><span class="chev"></span></span></summary>
+                  <div class="sitelist">
+                    <div class="site"><span class="sn">BlueEyes Properties</span><span class="sd">blueeyes.properties</span></div>
+                    <div class="site"><span class="sn">Fortune Financial</span><span class="sd">fortune-financial.co.uk</span></div>
+                    <div class="site"><span class="sn">Home Harmony</span><span class="sd">homeharmony.properties</span></div>
+                    <div class="site"><span class="sn">Nova Buddy</span><span class="sd">novabuddy.com</span></div>
+                    <div class="site"><span class="sn">PEN International Education</span><span class="sd none">domain to confirm</span></div>
+                    <div class="site"><span class="sn">AIQQA</span><span class="sd none">domain to confirm</span></div>
+                  </div>
+                </details></div>
+                <div class="lit"><details class="pbox sitebox redir">
+                  <summary><span>Redirect</span><span class="sm-r"><span class="cnt">1</span><span class="chev"></span></span></summary>
+                  <div class="sitelist">
+                    <div class="site"><span class="sn">PEN Global</span><span class="sd">penglobalbd.com</span></div>
+                  </div>
+                </details></div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="role-legend">
+      <span class="rl-lbl">Role colours</span>
+      <span class="rl"><i class="sw-role dev"></i> Dev</span>
+      <span class="rl"><i class="sw-role web"></i> Web</span>
+      <span class="rl"><i class="sw-role support"></i> Support</span>
+      <span class="rl"><i class="sw-role qa"></i> QA</span>
+      <span class="rl-hint">Hover a name to see its role</span>
+    </div>
+
+    <!-- Delivery staffing totals -->
+    <div class="totals">
+      <h2>Delivery staffing totals</h2><span class="u"></span>
+      <table class="ttbl">
+        <thead>
+          <tr>
+            <th>Staffing</th><th class="num">Dev</th><th class="num">QA</th><th class="num">Support</th><th class="num">Web Dev</th><th class="num">UI/UX</th><th class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="rowlbl">Existing colleagues</td><td class="num">16</td><td class="num">1</td><td class="num">3</td><td class="num">10</td><td class="num">4</td><td class="num">34</td></tr>
+          <tr><td class="rowlbl">New joinees</td><td class="num">8</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">8</td></tr>
+          <tr><td class="rowlbl">More needed</td><td class="num">11</td><td class="num">7</td><td class="num">5</td><td class="num">0</td><td class="num">0</td><td class="num">23</td></tr>
+          <tr class="total"><td class="rowlbl">Planned total</td><td class="num">35</td><td class="num">8</td><td class="num">8</td><td class="num">10</td><td class="num">4</td><td class="num">65</td></tr>
+        </tbody>
+      </table>
+      <p class="foot-note">Existing figures count each colleague once by name; new joinees include four candidates at offer-sent stage; shared hiring requirements are counted once.</p>
+    </div>
+
+    <footer class="doc-foot">
+      <div class="co">Planet Education Networks Ltd</div>
+      Registered in England &amp; Wales &middot; Company no. 14282467 &middot; Registered office: 12th Floor, Exchange Tower, 1 Harbour Exchange, London E14 9GE<br>
+      <span class="conf">Confidential &mdash; for internal use only.</span> Prepared July 2026 &middot; PEN Group Technology.
+    </footer>
+  </div>
+
+</body>
+</html>

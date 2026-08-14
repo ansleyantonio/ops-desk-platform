@@ -1,0 +1,21 @@
+OpsDesk MySQL deployment export
+================================
+
+Archive contents
+----------------
+- opsdesk-mysql-2026-08-14.sql
+- IMPORT.txt
+
+Import
+------
+mysql -u root -p < opsdesk-mysql-2026-08-14.sql
+
+The dump creates and selects the `project-pal` database. It includes the full
+schema and application data. Active rows from `auth_sessions` are intentionally
+excluded so local browser sessions are not transferred to the server.
+
+After deployment
+----------------
+1. Configure MYSQL_PASSWORD for the application if the database user has one.
+2. Start OpsDesk and verify the login page.
+3. Change the demo administrator password before production use.

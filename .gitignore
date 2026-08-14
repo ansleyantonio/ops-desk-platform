@@ -1,0 +1,6 @@
+node_modules
+deploy/database/opsdesk-mysql-2026-08-14.sql
+deploy/database/opsdesk-mysql-2026-08-14.zip
+/dist
+/outputs
+/tmp

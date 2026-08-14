@@ -1,0 +1,387 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+}
+
+:root {
+  --radius: 1rem;
+  --background: oklch(0.972 0.005 240);
+  --foreground: oklch(0.225 0.018 240);
+  --card: oklch(0.995 0.003 240);
+  --card-foreground: oklch(0.225 0.018 240);
+  --popover: oklch(0.998 0.002 240);
+  --popover-foreground: oklch(0.225 0.018 240);
+  --primary: oklch(0.57 0.1 228);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.005 240);
+  --secondary-foreground: oklch(0.29 0.016 240);
+  --muted: oklch(0.952 0.005 240);
+  --muted-foreground: oklch(0.49 0.015 240);
+  --accent: oklch(0.935 0.014 228);
+  --accent-foreground: oklch(0.27 0.03 228);
+  --destructive: oklch(0.61 0.18 24);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.64 0.14 165);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.79 0.11 82);
+  --warning-foreground: oklch(0.26 0.02 82);
+  --info: oklch(0.65 0.11 225);
+  --info-foreground: oklch(0.99 0 0);
+  --border: oklch(0.885 0.008 240);
+  --input: oklch(0.89 0.008 240);
+  --ring: oklch(0.6 0.09 228);
+  --panel: oklch(0.995 0.003 240 / 0.8);
+  --panel-strong: oklch(0.998 0.002 240 / 0.92);
+  --panel-muted: oklch(0.95 0.004 240 / 0.7);
+  --gradient-hero:
+    radial-gradient(circle at top left, oklch(0.93 0.03 223 / 0.72), transparent 42%),
+    radial-gradient(circle at top right, oklch(0.89 0.02 190 / 0.48), transparent 34%);
+  --shadow-card: 0 12px 32px oklch(0.28 0.02 240 / 0.06);
+  --shadow-surface: 0 18px 54px oklch(0.24 0.02 240 / 0.08);
+  --shadow-elevated: 0 28px 84px oklch(0.24 0.02 240 / 0.12);
+}
+
+.dark {
+  --background: oklch(0.165 0.01 240);
+  --foreground: oklch(0.965 0.004 240);
+  --card: oklch(0.21 0.014 240);
+  --card-foreground: oklch(0.965 0.004 240);
+  --popover: oklch(0.2 0.013 240);
+  --popover-foreground: oklch(0.965 0.004 240);
+  --primary: oklch(0.74 0.09 220);
+  --primary-foreground: oklch(0.17 0.01 240);
+  --secondary: oklch(0.25 0.013 240);
+  --secondary-foreground: oklch(0.95 0.004 240);
+  --muted: oklch(0.24 0.012 240);
+  --muted-foreground: oklch(0.74 0.01 240);
+  --accent: oklch(0.28 0.02 228);
+  --accent-foreground: oklch(0.97 0.004 240);
+  --destructive: oklch(0.67 0.17 24);
+  --destructive-foreground: oklch(0.98 0.004 240);
+  --success: oklch(0.72 0.13 165);
+  --success-foreground: oklch(0.16 0.01 240);
+  --warning: oklch(0.82 0.1 82);
+  --warning-foreground: oklch(0.18 0.01 240);
+  --info: oklch(0.74 0.1 225);
+  --info-foreground: oklch(0.16 0.01 240);
+  --border: oklch(1 0 0 / 0.09);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: oklch(0.75 0.08 220);
+  --panel: oklch(0.2 0.013 240 / 0.76);
+  --panel-strong: oklch(0.23 0.014 240 / 0.9);
+  --panel-muted: oklch(0.27 0.014 240 / 0.62);
+  --gradient-hero:
+    radial-gradient(circle at top left, oklch(0.32 0.05 225 / 0.44), transparent 42%),
+    radial-gradient(circle at top right, oklch(0.3 0.04 185 / 0.22), transparent 36%);
+  --shadow-card: 0 16px 42px oklch(0.05 0.01 240 / 0.22);
+  --shadow-surface: 0 24px 72px oklch(0.04 0.01 240 / 0.28);
+  --shadow-elevated: 0 36px 96px oklch(0.03 0.01 240 / 0.36);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100vh;
+    position: relative;
+    background: linear-gradient(180deg, oklch(0.992 0.003 240), var(--color-background));
+    color: var(--color-foreground);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-family:
+      "Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  }
+
+  .dark body {
+    background: linear-gradient(180deg, oklch(0.19 0.012 240), var(--color-background));
+  }
+
+  ::selection {
+    background: oklch(0.58 0.12 225 / 0.2);
+    color: var(--color-foreground);
+  }
+
+  body::before,
+  body::after {
+    content: "";
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+
+  body::before {
+    background: var(--gradient-hero);
+    opacity: 0.9;
+  }
+
+  body::after {
+    opacity: 0.42;
+    background:
+      radial-gradient(circle at 10% 12%, oklch(0.98 0.01 220 / 0.6), transparent 20%),
+      radial-gradient(circle at 88% 20%, oklch(0.96 0.008 180 / 0.42), transparent 22%),
+      radial-gradient(circle at 50% 100%, oklch(0.88 0.01 240 / 0.16), transparent 36%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  .app-panel {
+    background: var(--panel);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 10px 36px oklch(0.24 0.02 240 / 0.05);
+    backdrop-filter: blur(18px);
+  }
+
+  .app-panel-strong {
+    background: var(--panel-strong);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 14px 44px oklch(0.24 0.02 240 / 0.06);
+    backdrop-filter: blur(22px);
+  }
+
+  .app-panel-muted {
+    background: var(--panel-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  .app-shell-frame {
+    background: color-mix(in oklab, var(--color-background) 88%, white 12%);
+    border-color: color-mix(in oklab, var(--color-border) 92%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .app-workspace {
+    background: color-mix(in oklab, var(--color-card) 88%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-border) 96%, transparent);
+    box-shadow: 0 16px 44px oklch(0.24 0.02 240 / 0.045);
+  }
+
+  .app-section-divider {
+    border-top: 1px solid color-mix(in oklab, var(--color-border) 96%, transparent);
+  }
+
+  .app-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border);
+    background: var(--panel-muted);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-muted-foreground);
+  }
+
+  .app-kicker {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+  }
+
+  .app-mono {
+    font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes login-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes login-path-flow {
+  from {
+    stroke-dashoffset: 34;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes login-scan {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -110px, 0);
+  }
+  18%,
+  82% {
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(0, 110px, 0);
+  }
+}
+
+@keyframes login-progress {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  52% {
+    transform: scaleX(0.72);
+    transform-origin: left;
+  }
+  53% {
+    transform-origin: right;
+  }
+  to {
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+}
+
+.login-reveal {
+  opacity: 0;
+  animation: login-reveal 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+.login-path {
+  stroke: rgb(121 170 165 / 0.3);
+  stroke-width: 1;
+  stroke-dasharray: 5 8;
+  animation: login-path-flow 4.5s linear infinite;
+}
+
+.login-scan-line {
+  animation: login-scan 6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.login-progress {
+  animation: login-progress 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-reveal {
+    opacity: 1;
+    animation: none;
+  }
+
+  .login-path,
+  .login-scan-line,
+  .login-progress {
+    animation: none;
+  }
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.35in;
+  }
+
+  html,
+  body {
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .team-workflow-print-surface,
+  .team-workflow-print-surface * {
+    visibility: visible !important;
+  }
+
+  .team-workflow-print-dialog,
+  .team-workflow-print-scroll,
+  .team-workflow-print-surface {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  .team-workflow-print-toolbar {
+    display: none !important;
+  }
+
+  .team-workflow-print-scroll {
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .team-workflow-print-surface {
+    color: #1f2937 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
