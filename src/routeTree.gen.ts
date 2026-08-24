@@ -13,12 +13,18 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as TechRadarRouteImport } from './routes/tech-radar'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TeamWorkflowRouteImport } from './routes/team-workflow'
+import { Route as TeamPerformanceRouteImport } from './routes/team-performance'
 import { Route as TeamMapRouteImport } from './routes/team-map'
 import { Route as ResponsibilityChartRouteImport } from './routes/responsibility-chart'
+import { Route as RecruitmentRouteImport } from './routes/recruitment'
+import { Route as PmPerformanceRouteImport } from './routes/pm-performance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DomainsRouteImport } from './routes/domains'
+import { Route as DevPerformanceRouteImport } from './routes/dev-performance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
+import { Route as ApiRecruitmentInstructionsRouteImport } from './routes/api.recruitment.instructions'
+import { Route as ApiRecruitmentCandidatesRouteImport } from './routes/api.recruitment.candidates'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -40,6 +46,11 @@ const TeamWorkflowRoute = TeamWorkflowRouteImport.update({
   path: '/team-workflow',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamPerformanceRoute = TeamPerformanceRouteImport.update({
+  id: '/team-performance',
+  path: '/team-performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeamMapRoute = TeamMapRouteImport.update({
   id: '/team-map',
   path: '/team-map',
@@ -48,6 +59,16 @@ const TeamMapRoute = TeamMapRouteImport.update({
 const ResponsibilityChartRoute = ResponsibilityChartRouteImport.update({
   id: '/responsibility-chart',
   path: '/responsibility-chart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruitmentRoute = RecruitmentRouteImport.update({
+  id: '/recruitment',
+  path: '/recruitment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PmPerformanceRoute = PmPerformanceRouteImport.update({
+  id: '/pm-performance',
+  path: '/pm-performance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -60,6 +81,11 @@ const DomainsRoute = DomainsRouteImport.update({
   path: '/domains',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevPerformanceRoute = DevPerformanceRouteImport.update({
+  id: '/dev-performance',
+  path: '/dev-performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -70,94 +96,148 @@ const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   path: '/projects/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRecruitmentInstructionsRoute =
+  ApiRecruitmentInstructionsRouteImport.update({
+    id: '/api/recruitment/instructions',
+    path: '/api/recruitment/instructions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiRecruitmentCandidatesRoute =
+  ApiRecruitmentCandidatesRouteImport.update({
+    id: '/api/recruitment/candidates',
+    path: '/api/recruitment/candidates',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
+  '/pm-performance': typeof PmPerformanceRoute
+  '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
+  '/team-performance': typeof TeamPerformanceRoute
   '/team-workflow': typeof TeamWorkflowRoute
   '/teams': typeof TeamsRoute
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
+  '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
+  '/pm-performance': typeof PmPerformanceRoute
+  '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
+  '/team-performance': typeof TeamPerformanceRoute
   '/team-workflow': typeof TeamWorkflowRoute
   '/teams': typeof TeamsRoute
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
+  '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
+  '/pm-performance': typeof PmPerformanceRoute
+  '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
+  '/team-performance': typeof TeamPerformanceRoute
   '/team-workflow': typeof TeamWorkflowRoute
   '/teams': typeof TeamsRoute
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
+  '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dev-performance'
     | '/domains'
     | '/login'
+    | '/pm-performance'
+    | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
+    | '/team-performance'
     | '/team-workflow'
     | '/teams'
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/recruitment/candidates'
+    | '/api/recruitment/instructions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dev-performance'
     | '/domains'
     | '/login'
+    | '/pm-performance'
+    | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
+    | '/team-performance'
     | '/team-workflow'
     | '/teams'
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/recruitment/candidates'
+    | '/api/recruitment/instructions'
   id:
     | '__root__'
     | '/'
+    | '/dev-performance'
     | '/domains'
     | '/login'
+    | '/pm-performance'
+    | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
+    | '/team-performance'
     | '/team-workflow'
     | '/teams'
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/recruitment/candidates'
+    | '/api/recruitment/instructions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DevPerformanceRoute: typeof DevPerformanceRoute
   DomainsRoute: typeof DomainsRoute
   LoginRoute: typeof LoginRoute
+  PmPerformanceRoute: typeof PmPerformanceRoute
+  RecruitmentRoute: typeof RecruitmentRoute
   ResponsibilityChartRoute: typeof ResponsibilityChartRoute
   TeamMapRoute: typeof TeamMapRoute
+  TeamPerformanceRoute: typeof TeamPerformanceRoute
   TeamWorkflowRoute: typeof TeamWorkflowRoute
   TeamsRoute: typeof TeamsRoute
   TechRadarRoute: typeof TechRadarRoute
   UsersRoute: typeof UsersRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+  ApiRecruitmentCandidatesRoute: typeof ApiRecruitmentCandidatesRoute
+  ApiRecruitmentInstructionsRoute: typeof ApiRecruitmentInstructionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -190,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamWorkflowRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team-performance': {
+      id: '/team-performance'
+      path: '/team-performance'
+      fullPath: '/team-performance'
+      preLoaderRoute: typeof TeamPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/team-map': {
       id: '/team-map'
       path: '/team-map'
@@ -202,6 +289,20 @@ declare module '@tanstack/react-router' {
       path: '/responsibility-chart'
       fullPath: '/responsibility-chart'
       preLoaderRoute: typeof ResponsibilityChartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruitment': {
+      id: '/recruitment'
+      path: '/recruitment'
+      fullPath: '/recruitment'
+      preLoaderRoute: typeof RecruitmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pm-performance': {
+      id: '/pm-performance'
+      path: '/pm-performance'
+      fullPath: '/pm-performance'
+      preLoaderRoute: typeof PmPerformanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -218,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DomainsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev-performance': {
+      id: '/dev-performance'
+      path: '/dev-performance'
+      fullPath: '/dev-performance'
+      preLoaderRoute: typeof DevPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -232,20 +340,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/recruitment/instructions': {
+      id: '/api/recruitment/instructions'
+      path: '/api/recruitment/instructions'
+      fullPath: '/api/recruitment/instructions'
+      preLoaderRoute: typeof ApiRecruitmentInstructionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/recruitment/candidates': {
+      id: '/api/recruitment/candidates'
+      path: '/api/recruitment/candidates'
+      fullPath: '/api/recruitment/candidates'
+      preLoaderRoute: typeof ApiRecruitmentCandidatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DevPerformanceRoute: DevPerformanceRoute,
   DomainsRoute: DomainsRoute,
   LoginRoute: LoginRoute,
+  PmPerformanceRoute: PmPerformanceRoute,
+  RecruitmentRoute: RecruitmentRoute,
   ResponsibilityChartRoute: ResponsibilityChartRoute,
   TeamMapRoute: TeamMapRoute,
+  TeamPerformanceRoute: TeamPerformanceRoute,
   TeamWorkflowRoute: TeamWorkflowRoute,
   TeamsRoute: TeamsRoute,
   TechRadarRoute: TechRadarRoute,
   UsersRoute: UsersRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+  ApiRecruitmentCandidatesRoute: ApiRecruitmentCandidatesRoute,
+  ApiRecruitmentInstructionsRoute: ApiRecruitmentInstructionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

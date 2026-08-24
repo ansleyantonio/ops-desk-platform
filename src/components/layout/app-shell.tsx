@@ -59,6 +59,8 @@ import {
   Settings,
   SunMedium,
   Target,
+  TrendingUp,
+  BriefcaseBusiness,
   UserRound,
   UsersRound,
   Zap,
@@ -212,6 +214,19 @@ export function AppShell({
       to: "/team-workflow" as const,
     },
     {
+      label: "Team performance",
+      icon: TrendingUp,
+      children: [
+        { label: "Dev performance", icon: TrendingUp, to: "/dev-performance" as const },
+        { label: "PM performance", icon: FileBarChart2, to: "/pm-performance" as const },
+      ],
+    },
+    {
+      label: "Recruitment",
+      icon: BriefcaseBusiness,
+      to: "/recruitment" as const,
+    },
+    {
       label: "Responsibility chart",
       icon: Target,
       to: "/responsibility-chart" as const,
@@ -300,7 +315,7 @@ export function AppShell({
         </aside>
 
         <div className="min-h-screen md:pl-[272px]">
-          <header className="app-shell-frame sticky top-0 z-20 border-b px-4 sm:px-5">
+          <header className="app-shell-frame sticky top-0 z-20 border-b px-3 sm:px-5">
             <div className="flex min-h-[72px] items-center gap-3 py-3">
               <Button
                 variant="ghost"
@@ -378,14 +393,14 @@ export function AppShell({
 
           <main
             id="main-content"
-            className={density === "compact" ? "px-4 py-4" : "px-4 py-5 sm:px-5 sm:py-6"}
+            className={density === "compact" ? "px-3 py-4 sm:px-4" : "px-3 py-4 sm:px-5 sm:py-6"}
           >
             {children}
           </main>
         </div>
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-[19rem] border-0 bg-transparent p-4 shadow-none">
+          <SheetContent side="left" className="w-[min(19rem,calc(100vw-0.5rem))] border-0 bg-transparent p-2 shadow-none sm:p-4">
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation</SheetTitle>
             </SheetHeader>
@@ -544,15 +559,24 @@ function SidebarContent({
   pageItems: Array<{
     label: string;
     icon: React.ComponentType<{ className?: string }>;
-    to:
+    to?:
       | "/"
       | "/teams"
       | "/team-map"
       | "/team-workflow"
+      | "/team-performance"
+      | "/dev-performance"
+      | "/pm-performance"
+      | "/recruitment"
       | "/responsibility-chart"
       | "/tech-radar"
       | "/domains"
       | "/users";
+    children?: Array<{
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      to: "/dev-performance" | "/pm-performance";
+    }>;
   }>;
   pathname: string;
   currentUser: AuthUser;
@@ -593,16 +617,20 @@ function SidebarContent({
       </button>
 
       <nav className="mt-5 space-y-1" aria-label="Pages">
-        {pageItems.map((item) => (
-          <SidebarRouteLink
-            key={item.to}
-            active={pathname === item.to}
-            icon={item.icon}
-            label={item.label}
-            onNavigate={onNavigate}
-            to={item.to}
-          />
-        ))}
+        {pageItems.map((item) => item.children ? (
+          <details key={item.label} className="group/performance" open={item.children.some((child) => pathname === child.to)}>
+            <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/55 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <item.icon className="h-3.5 w-3.5" />
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/performance:rotate-180" />
+            </summary>
+            <div className="ml-4 mt-1 space-y-1 border-l border-border/70 pl-2">
+              {item.children.map((child) => <SidebarRouteLink key={child.to} active={pathname === child.to} icon={child.icon} label={child.label} onNavigate={onNavigate} to={child.to} />)}
+            </div>
+          </details>
+        ) : item.to ? (
+          <SidebarRouteLink key={item.to} active={pathname === item.to} icon={item.icon} label={item.label} onNavigate={onNavigate} to={item.to} />
+        ) : null)}
       </nav>
 
       <nav className="mt-3 space-y-1" aria-label="Primary">
@@ -737,6 +765,10 @@ function SidebarRouteLink({
     | "/teams"
     | "/team-map"
     | "/team-workflow"
+    | "/team-performance"
+    | "/dev-performance"
+    | "/pm-performance"
+    | "/recruitment"
     | "/responsibility-chart"
     | "/tech-radar"
     | "/domains"
@@ -822,6 +854,24 @@ function getPageMeta(pathname: string) {
     return {
       title: "Team workflow",
       description: "Leadership path, project managers, and delivery team structure",
+    };
+  }
+  if (pathname === "/team-performance") {
+    return {
+      title: "Team performance",
+      description: "Member-level delivery statistics across project tickets",
+    };
+  }
+  if (pathname === "/dev-performance") {
+    return { title: "Dev performance", description: "Developer and QA delivery statistics across project tickets" };
+  }
+  if (pathname === "/pm-performance") {
+    return { title: "PM performance", description: "Project manager delivery statistics across project tickets" };
+  }
+  if (pathname === "/recruitment") {
+    return {
+      title: "Recruitment",
+      description: "Candidate pipeline from initial recruitment through offer",
     };
   }
   if (pathname === "/responsibility-chart") {

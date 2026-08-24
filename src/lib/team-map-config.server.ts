@@ -5,7 +5,7 @@ import mysql from "mysql2/promise";
 const pool = mysql.createPool({
   host: "127.0.0.1",
   port: 3306,
-  user: "root",
+  user: process.env.MYSQL_USER || "opsdesk",
   password: process.env.MYSQL_PASSWORD || undefined,
   database: "project-pal",
   charset: "utf8mb4",

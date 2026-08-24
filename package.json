@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@kenjiuno/msgreader": "^1.28.0",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -54,6 +55,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
     "mysql2": "^3.22.5",
+    "postal-mime": "^3.0.0",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",

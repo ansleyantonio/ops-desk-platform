@@ -119,6 +119,7 @@
   html {
     color-scheme: light;
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   html.dark {
@@ -127,6 +128,8 @@
 
   body {
     min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
     position: relative;
     background: linear-gradient(180deg, oklch(0.992 0.003 240), var(--color-background));
     color: var(--color-foreground);
@@ -175,6 +178,20 @@
   h5,
   h6 {
     text-wrap: balance;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 }
 
@@ -238,6 +255,98 @@
   .app-mono {
     font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * Mobile safety net for the application workspace. Individual pages still own
+ * their larger breakpoints; these rules make dense admin UI usable on narrow
+ * screens without allowing one fixed-width control or report to widen the app.
+ */
+@media (max-width: 767px) {
+  #main-content {
+    width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+    padding-inline: 0.75rem;
+  }
+
+  #main-content > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #main-content .app-workspace,
+  #main-content .app-panel,
+  #main-content .app-panel-strong {
+    max-width: 100%;
+    border-radius: 1.25rem;
+  }
+
+  #main-content [class*="grid-cols-["] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #main-content [class*="grid-cols-4"],
+  #main-content [class*="grid-cols-5"],
+  #main-content [class*="grid-cols-6"],
+  #main-content [class*="grid-cols-7"],
+  #main-content [class*="grid-cols-8"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #main-content [class*="w-["]:not([class*="rounded-full"]) {
+    max-width: 100%;
+  }
+
+  #main-content table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  #main-content th,
+  #main-content td {
+    white-space: nowrap;
+  }
+
+  #main-content h1 {
+    font-size: clamp(1.75rem, 9vw, 2.6rem);
+    line-height: 1.05;
+  }
+
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 374px) {
+  #main-content {
+    padding-inline: 0.5rem;
+  }
+
+  #main-content [class*="grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #main-content [class*="grid-cols-3"],
+  #main-content [class*="grid-cols-4"],
+  #main-content [class*="grid-cols-5"],
+  #main-content [class*="grid-cols-6"],
+  #main-content [class*="grid-cols-7"],
+  #main-content [class*="grid-cols-8"] {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

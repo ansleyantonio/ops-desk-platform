@@ -34,7 +34,7 @@ import addAuthRbacSql from "./migrations/0015_add_auth_rbac.sql?raw";
 export const DATABASE_NAME = "project-pal";
 export const DATABASE_HOST = "127.0.0.1";
 export const DATABASE_PORT = 3306;
-export const DATABASE_USER = "root";
+export const DATABASE_USER = process.env.MYSQL_USER || "opsdesk";
 
 type ProjectRow = {
   id: string;
