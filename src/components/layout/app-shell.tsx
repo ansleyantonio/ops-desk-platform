@@ -54,6 +54,8 @@ import {
   LogOut,
   Menu,
   MoonStar,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
@@ -79,6 +81,11 @@ function readDensity(): DensityMode {
   return stored === "compact" ? "compact" : "comfortable";
 }
 
+function readSidebarCollapsed() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem("opsdesk:sidebar-collapsed") === "true";
+}
+
 function applyShellPreferences(theme: ThemeMode, density: DensityMode) {
   if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", theme === "dark");
@@ -100,6 +107,7 @@ export function AppShell({
 }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readSidebarCollapsed());
   const [commandOpen, setCommandOpen] = useState(false);
   const [theme, setThemeState] = useState<ThemeMode>(() => readTheme());
   const [density, setDensityState] = useState<DensityMode>(() => readDensity());
@@ -114,6 +122,10 @@ export function AppShell({
     window.localStorage.setItem("ppt:theme", theme);
     window.localStorage.setItem("ppt:density", density);
   }, [theme, density]);
+
+  useEffect(() => {
+    window.localStorage.setItem("opsdesk:sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -295,9 +307,10 @@ export function AppShell({
       </a>
       <div className="min-h-screen">
         <DomainExpiryReminder />
-        <aside className="app-shell-frame fixed inset-y-0 left-0 z-30 hidden w-[272px] border-r px-0 md:flex md:flex-col">
-          <div className="flex h-full min-h-0 flex-col overflow-y-auto px-4 py-5">
+        <aside className={cn("app-shell-frame fixed inset-y-0 left-0 z-30 hidden border-r px-0 transition-[width] duration-200 md:flex md:flex-col", sidebarCollapsed ? "w-[72px]" : "w-[272px]")}>
+          <div className={cn("flex h-full min-h-0 flex-col overflow-y-auto py-5", sidebarCollapsed ? "px-2" : "px-4")}>
             <SidebarContent
+              collapsed={sidebarCollapsed}
               density={density}
               metrics={shellMetrics}
               navItems={primaryNavItems}
@@ -310,11 +323,12 @@ export function AppShell({
               onDensity={toggleDensity}
               onLogout={() => void signOut()}
               onTheme={toggleTheme}
+              onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
             />
           </div>
         </aside>
 
-        <div className="min-h-screen md:pl-[272px]">
+        <div className={cn("min-h-screen transition-[padding] duration-200", sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[272px]")}>
           <header className="app-shell-frame sticky top-0 z-20 border-b px-3 sm:px-5">
             <div className="flex min-h-[72px] items-center gap-3 py-3">
               <Button
@@ -406,6 +420,7 @@ export function AppShell({
             </SheetHeader>
             <div className="app-shell-frame flex h-full flex-col border border-border rounded-[1.6rem] px-3 py-4">
               <SidebarContent
+                collapsed={false}
                 density={density}
                 metrics={shellMetrics}
                 navItems={primaryNavItems}
@@ -533,6 +548,7 @@ function UserAccountMenu({
 }
 
 function SidebarContent({
+  collapsed,
   density,
   metrics,
   navItems,
@@ -546,7 +562,9 @@ function SidebarContent({
   onLogout,
   onNavigate,
   onTheme,
+  onToggleCollapse,
 }: {
+  collapsed: boolean;
   density: DensityMode;
   metrics: ShellMetrics;
   navItems: Array<{
@@ -591,7 +609,40 @@ function SidebarContent({
   onLogout: () => void;
   onNavigate?: () => void;
   onTheme: () => void;
+  onToggleCollapse?: () => void;
 }) {
+  if (collapsed) {
+    return (
+      <>
+        <div className="flex flex-col items-center gap-3">
+          <BrandMark />
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onToggleCollapse} title="Expand menu" aria-label="Expand menu">
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+        </div>
+        <button type="button" onClick={onCommand} title="Search" aria-label="Search workspace" className="mx-auto mt-5 flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/65 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Search className="h-4 w-4" />
+        </button>
+        <nav className="mt-5 space-y-1" aria-label="Pages">
+          {pageItems.flatMap((item) => item.children || (item.to ? [item] : [])).map((item) => item.to ? (
+            <SidebarRouteLink key={item.to} active={pathname === item.to} compact icon={item.icon} label={item.label} to={item.to} />
+          ) : null)}
+        </nav>
+        <nav className="mt-3 space-y-1" aria-label="Primary">
+          {navItems.map((item) => <SidebarButton key={item.label} active={item.active} compact icon={item.icon} label={item.label} onClick={item.onClick} />)}
+        </nav>
+        <div className="mt-auto space-y-2 pt-5">
+          <Separator />
+          <Button variant="ghost" size="icon" className="mx-auto flex h-9 w-9" onClick={onTheme} title="Toggle theme" aria-label="Toggle theme">
+            {theme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="mx-auto flex h-9 w-9" onClick={onLogout} title="Sign out" aria-label="Sign out">
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </>
+    );
+  }
   return (
     <>
       <div className="flex items-center gap-3 px-2">
@@ -602,6 +653,7 @@ function SidebarContent({
           </div>
           <div className="text-[11px] text-muted-foreground">Operations command layer</div>
         </div>
+        {onToggleCollapse && <Button variant="ghost" size="icon" className="ml-auto h-9 w-9 shrink-0" onClick={onToggleCollapse} title="Collapse menu" aria-label="Collapse menu"><PanelLeftClose className="h-4 w-4" /></Button>}
       </div>
 
       <button
@@ -751,12 +803,14 @@ function SidebarSection({ children, label }: { children: ReactNode; label: strin
 
 function SidebarRouteLink({
   active = false,
+  compact = false,
   icon: Icon,
   label,
   onNavigate,
   to,
 }: {
   active?: boolean;
+  compact?: boolean;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   onNavigate?: () => void;
@@ -778,28 +832,32 @@ function SidebarRouteLink({
     <Link
       to={to}
       aria-current={active ? "page" : undefined}
+      title={compact ? label : undefined}
       onClick={onNavigate}
       className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-full px-3 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex h-9 w-full items-center gap-2 rounded-full text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        compact ? "justify-center px-0" : "px-3",
         active
           ? "bg-primary/12 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
           : "text-muted-foreground hover:bg-accent/55 hover:text-foreground",
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {!compact && <span className="min-w-0 flex-1 truncate">{label}</span>}
     </Link>
   );
 }
 
 function SidebarButton({
   active = false,
+  compact = false,
   count,
   icon: Icon,
   label,
   onClick,
 }: {
   active?: boolean;
+  compact?: boolean;
   count?: number | null;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -809,16 +867,18 @@ function SidebarButton({
     <button
       type="button"
       onClick={onClick}
+      title={compact ? label : undefined}
       className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-full px-3 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex h-9 w-full items-center gap-2 rounded-full text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        compact ? "justify-center px-0" : "px-3",
         active
           ? "bg-primary/12 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
           : "text-muted-foreground hover:bg-accent/55 hover:text-foreground",
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {typeof count === "number" && count > 0 && (
+      {!compact && <span className="min-w-0 flex-1 truncate">{label}</span>}
+      {!compact && typeof count === "number" && count > 0 && (
         <span className="text-[11px] font-normal text-muted-foreground tabular-nums">{count}</span>
       )}
     </button>
