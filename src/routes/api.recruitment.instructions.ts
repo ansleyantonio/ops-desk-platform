@@ -46,6 +46,8 @@ VALID PHASES
 - test_sent
 - final_interview
 - offer_made
+- offer_refused
+- rejected
 
 JSON PAYLOAD
 {

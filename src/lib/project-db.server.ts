@@ -30,6 +30,7 @@ import addProjectDraftFlagSql from "./migrations/0012_add_project_draft_flag.sql
 import addDomainMonitorsSql from "./migrations/0013_add_domain_monitors.sql?raw";
 import addTeamMapTreeConfigSql from "./migrations/0014_add_team_map_tree_config.sql?raw";
 import addAuthRbacSql from "./migrations/0015_add_auth_rbac.sql?raw";
+import addUserProjectAccessSql from "./migrations/0016_add_user_project_access.sql?raw";
 
 export const DATABASE_NAME = "project-pal";
 export const DATABASE_HOST = "127.0.0.1";
@@ -187,6 +188,7 @@ export async function ensureSchema() {
     { id: "0013_add_domain_monitors", sql: addDomainMonitorsSql },
     { id: "0014_add_team_map_tree_config", sql: addTeamMapTreeConfigSql },
     { id: "0015_add_auth_rbac", sql: addAuthRbacSql },
+    { id: "0016_add_user_project_access", sql: addUserProjectAccessSql },
   ] as const;
 
   const [appliedRows] = await appPool.query<Array<{ migration_id: string }>>(
@@ -458,10 +460,14 @@ async function seedDemoData() {
   }
 }
 
-export async function listProjects() {
+export async function listProjects(allowedProjectIds?: string[]) {
   await ensureSchema();
   await seedDemoData();
 
+  if (allowedProjectIds && allowedProjectIds.length === 0) return [];
+  const accessClause = allowedProjectIds
+    ? ` AND id IN (${allowedProjectIds.map(() => "?").join(", ")})`
+    : "";
   const [projectRows] = await appPool.query<ProjectRow[]>(
     `
       SELECT
@@ -485,8 +491,10 @@ export async function listProjects() {
         updated_at
       FROM projects
       WHERE deleted_at IS NULL
+      ${accessClause}
       ORDER BY updated_at DESC, created_at DESC
     `,
+    allowedProjectIds,
   );
 
   if (projectRows.length === 0) return [];

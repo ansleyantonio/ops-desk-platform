@@ -36,6 +36,12 @@
   --color-info-foreground: var(--info-foreground);
 }
 
+@media (min-width: 1280px) {
+  #main-content section.grid.gap-4.xl\:grid-cols-4 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 :root {
   --radius: 1rem;
   --background: oklch(0.972 0.005 240);

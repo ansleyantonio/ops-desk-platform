@@ -74,3 +74,12 @@ export const resetAppUserPassword = createServerFn({ method: "POST" })
     await resetUserPassword(data.id, data.password);
     return { ok: true as const };
   });
+
+export const updateAppUserProjects = createServerFn({ method: "POST" })
+  .validator((data: { id: string; projectIds: string[] }) =>
+    z.object({ id: z.string().min(1).max(64), projectIds: z.array(z.string().min(1).max(64)).max(500) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { updateUserProjects } = await import("./auth.server");
+    return updateUserProjects(data.id, data.projectIds);
+  });

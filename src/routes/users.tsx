@@ -1,5 +1,6 @@
 import {
   Check,
+  FolderSimple,
   Key,
   LockKey,
   Plus,
@@ -36,7 +37,10 @@ import {
   listAppUsers,
   resetAppUserPassword,
   updateAppUser,
+  updateAppUserProjects,
 } from "@/lib/auth.functions";
+import { listProjects } from "@/lib/project.functions";
+import type { Project } from "@/lib/tracker-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/users")({
@@ -65,17 +69,21 @@ const permissionLabels = {
 function UsersPage() {
   const { currentUser } = Route.useRouteContext();
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<AuthUser | null>(null);
+  const [accessTarget, setAccessTarget] = useState<AuthUser | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await listAppUsers());
+      const [userData, projectData] = await Promise.all([listAppUsers(), listProjects()]);
+      setUsers(userData);
+      setProjects(projectData.filter((project) => !project.isDraft));
     } catch (cause) {
       console.error("Failed to load users", cause);
       setError("User accounts could not be loaded.");
@@ -201,7 +209,7 @@ function UsersPage() {
                     key={user.id}
                     className={cn("px-5 py-5 transition-opacity sm:px-6", busy && "opacity-60")}
                   >
-                    <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_150px_120px_auto]">
+                    <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_150px_120px_auto_auto]">
                       <div className="flex min-w-0 items-center gap-3.5">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                           {initials(user.name)}
@@ -262,6 +270,16 @@ function UsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setAccessTarget(user)}
+                        disabled={busy}
+                        title={user.role === "admin" ? "Administrators can view every project" : undefined}
+                      >
+                        <FolderSimple size={14} />
+                        {user.role === "admin" ? "All projects" : `${user.projectIds.length} projects`}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setResetTarget(user)}
                         disabled={busy}
                       >
@@ -317,7 +335,104 @@ function UsersPage() {
         target={resetTarget}
         onOpenChange={(open) => !open && setResetTarget(null)}
       />
+      <ProjectAccessDialog
+        target={accessTarget}
+        projects={projects}
+        onOpenChange={(open) => !open && setAccessTarget(null)}
+        onUpdated={(updated) => {
+          setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)));
+          setAccessTarget(updated);
+        }}
+      />
     </div>
+  );
+}
+
+function ProjectAccessDialog({
+  target,
+  projects,
+  onOpenChange,
+  onUpdated,
+}: {
+  target: AuthUser | null;
+  projects: Project[];
+  onOpenChange: (open: boolean) => void;
+  onUpdated: (user: AuthUser) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelected(target?.projectIds ?? []);
+    setError(null);
+  }, [target]);
+
+  const save = async () => {
+    if (!target || target.role === "admin") return;
+    setSaving(true);
+    setError(null);
+    try {
+      onUpdated(await updateAppUserProjects({ data: { id: target.id, projectIds: selected } }));
+      onOpenChange(false);
+    } catch (cause) {
+      console.error("Failed to update project access", cause);
+      setError(cause instanceof Error ? cause.message : "Project access could not be updated.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isAdmin = target?.role === "admin";
+  return (
+    <Dialog open={Boolean(target)} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-[1.5rem] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Project access</DialogTitle>
+          <DialogDescription>
+            {isAdmin
+              ? `${target?.name} is an administrator and can view every project.`
+              : `Choose the projects ${target?.name ?? "this user"} can view. Their project and team statistics will use the same scope.`}
+          </DialogDescription>
+        </DialogHeader>
+        {!isAdmin && (
+          <>
+            <div className="flex items-center justify-between border-b border-border/70 pb-3 text-xs">
+              <span className="text-muted-foreground">{selected.length} of {projects.length} selected</span>
+              <div className="flex gap-3">
+                <button type="button" className="font-medium text-primary" onClick={() => setSelected(projects.map((project) => project.id))}>Select all</button>
+                <button type="button" className="font-medium text-muted-foreground" onClick={() => setSelected([])}>Clear</button>
+              </div>
+            </div>
+            <div className="max-h-[45vh] space-y-1 overflow-y-auto pr-1">
+              {projects.map((project) => {
+                const checked = selected.includes(project.id);
+                return (
+                  <label key={project.id} className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-muted/60">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setSelected((current) => checked ? current.filter((id) => id !== project.id) : [...current, project.id])}
+                      className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{project.name}</span>
+                      <span className="mt-0.5 block text-[11px] capitalize text-muted-foreground">{project.status.replace("_", " ")} · {project.phase.replace("_", " ")}</span>
+                    </span>
+                  </label>
+                );
+              })}
+              {projects.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No projects are available.</p>}
+            </div>
+          </>
+        )}
+        {error && <div role="alert" className="text-sm text-destructive">{error}</div>}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {!isAdmin && <Button type="button" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save access"}</Button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

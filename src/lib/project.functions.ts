@@ -84,9 +84,9 @@ const projectTeamSchema: z.ZodType<ProjectTeam> = z.object({
 
 export const listProjects = createServerFn({ method: "GET" }).handler(async () => {
   const { requirePermission } = await import("./auth.server");
-  await requirePermission("projects:view");
+  const user = await requirePermission("projects:view");
   const { listProjects } = await import("./project-db.server");
-  return listProjects();
+  return listProjects(user.role === "admin" ? undefined : user.projectIds);
 });
 
 export const saveProject = createServerFn({ method: "POST" })

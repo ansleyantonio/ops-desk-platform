@@ -19,6 +19,7 @@ export type AuthUser = {
   role: AppRole;
   status: "active" | "suspended";
   permissions: AppPermission[];
+  projectIds: string[];
   lastLoginAt?: number;
   createdAt: number;
 };

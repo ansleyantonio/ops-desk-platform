@@ -45,6 +45,7 @@ import {
   ChevronsUpDown,
   Clock3,
   FileBarChart2,
+  ChartNoAxesCombined,
   Gauge,
   GitBranch,
   Grid3X3,
@@ -105,6 +106,7 @@ export function AppShell({
   children: ReactNode;
   currentUser: AuthUser;
 }) {
+  const isViewer = currentUser.role === "viewer";
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readSidebarCollapsed());
@@ -128,6 +130,7 @@ export function AppShell({
   }, [sidebarCollapsed]);
 
   useEffect(() => {
+    if (isViewer) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -136,7 +139,7 @@ export function AppShell({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [isViewer]);
 
   const value = useMemo<AppShellContextValue>(
     () => ({
@@ -159,7 +162,7 @@ export function AppShell({
   );
   const pageMeta = getPageMeta(location.pathname);
 
-  const primaryNavItems = [
+  const primaryNavItems = isViewer ? [] : [
     {
       label: "Command",
       icon: Home,
@@ -204,11 +207,16 @@ export function AppShell({
     },
   ];
 
-  const pageItems = [
+  const allPageItems = [
     {
       label: "Dashboard",
       icon: Home,
       to: "/" as const,
+    },
+    {
+      label: "Project progress",
+      icon: ChartNoAxesCombined,
+      to: "/project-progress" as const,
     },
     {
       label: "Teams",
@@ -257,8 +265,11 @@ export function AppShell({
       ? [{ label: "Users & access", icon: UserRound, to: "/users" as const }]
       : []),
   ];
+  const pageItems = isViewer
+    ? allPageItems.filter((item) => item.to === "/project-progress")
+    : allPageItems;
 
-  const viewItems = [
+  const viewItems = isViewer ? [] : [
     { label: "Queue", icon: Grid3X3, onClick: () => scrollToId("board") },
     { label: "Roadmap", icon: Zap, onClick: () => scrollToId("health") },
     { label: "Capacity", icon: FileBarChart2, onClick: () => scrollToId("week") },
@@ -352,7 +363,7 @@ export function AppShell({
               <button
                 type="button"
                 onClick={openCommand}
-                className="hidden h-10 items-center gap-2 rounded-full border border-border/80 bg-background/65 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground lg:inline-flex"
+                className={cn("hidden h-10 items-center gap-2 rounded-full border border-border/80 bg-background/65 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground lg:inline-flex", isViewer && "lg:hidden")}
                 aria-label="Open command palette"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -387,13 +398,13 @@ export function AppShell({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="hidden h-10 w-10 sm:inline-flex"
+                  className={cn("hidden h-10 w-10 sm:inline-flex", isViewer && "sm:hidden")}
                   aria-label="Notifications"
                 >
                   <Bell className="h-3.5 w-3.5" />
                 </Button>
                 <Button
-                  className="h-10 w-10 px-0 text-xs sm:w-auto sm:px-4"
+                  className={cn("h-10 w-10 px-0 text-xs sm:w-auto sm:px-4", isViewer && "hidden")}
                   onClick={openNewProject}
                   aria-label="Create project"
                 >
@@ -439,7 +450,7 @@ export function AppShell({
           </SheetContent>
         </Sheet>
 
-        <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+        {!isViewer && <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
           <CommandInput placeholder="Search projects, actions, and views..." />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
@@ -490,7 +501,7 @@ export function AppShell({
               </CommandItem>
             </CommandGroup>
           </CommandList>
-        </CommandDialog>
+        </CommandDialog>}
       </div>
     </AppShellContext.Provider>
   );
@@ -611,6 +622,7 @@ function SidebarContent({
   onTheme: () => void;
   onToggleCollapse?: () => void;
 }) {
+  const viewerOnly = currentUser.role === "viewer";
   if (collapsed) {
     return (
       <>
@@ -620,9 +632,9 @@ function SidebarContent({
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
         </div>
-        <button type="button" onClick={onCommand} title="Search" aria-label="Search workspace" className="mx-auto mt-5 flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/65 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {!viewerOnly && <button type="button" onClick={onCommand} title="Search" aria-label="Search workspace" className="mx-auto mt-5 flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-background/65 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Search className="h-4 w-4" />
-        </button>
+        </button>}
         <nav className="mt-5 space-y-1" aria-label="Pages">
           {pageItems.flatMap((item) => item.children || (item.to ? [item] : [])).map((item) => item.to ? (
             <SidebarRouteLink key={item.to} active={pathname === item.to} compact icon={item.icon} label={item.label} to={item.to} />
@@ -656,7 +668,7 @@ function SidebarContent({
         {onToggleCollapse && <Button variant="ghost" size="icon" className="ml-auto h-9 w-9 shrink-0" onClick={onToggleCollapse} title="Collapse menu" aria-label="Collapse menu"><PanelLeftClose className="h-4 w-4" /></Button>}
       </div>
 
-      <button
+      {!viewerOnly && <button
         type="button"
         onClick={onCommand}
         className="mt-5 flex h-11 w-full items-center gap-2 rounded-full border border-border/80 bg-background/65 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -666,7 +678,7 @@ function SidebarContent({
         <span className="app-mono rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
           ⌘K
         </span>
-      </button>
+      </button>}
 
       <nav className="mt-5 space-y-1" aria-label="Pages">
         {pageItems.map((item) => item.children ? (
@@ -701,7 +713,7 @@ function SidebarContent({
         ))}
       </nav>
 
-      <SidebarSection label="Portfolio">
+      {!viewerOnly && <SidebarSection label="Portfolio">
         {metrics.projects.length > 0 ? (
           metrics.projects.slice(0, 4).map((project) => (
             <button
@@ -723,9 +735,9 @@ function SidebarContent({
             Add projects to build your workspace.
           </div>
         )}
-      </SidebarSection>
+      </SidebarSection>}
 
-      <SidebarSection label="Command views">
+      {!viewerOnly && <SidebarSection label="Command views">
         {viewItems.map((item) => (
           <SidebarButton
             key={item.label}
@@ -737,7 +749,7 @@ function SidebarContent({
             }}
           />
         ))}
-      </SidebarSection>
+      </SidebarSection>}
 
       <div className="mt-auto space-y-3 pt-5">
         <Separator />
@@ -822,6 +834,7 @@ function SidebarRouteLink({
     | "/team-performance"
     | "/dev-performance"
     | "/pm-performance"
+    | "/project-progress"
     | "/recruitment"
     | "/responsibility-chart"
     | "/tech-radar"
@@ -898,6 +911,12 @@ function BrandMark() {
 }
 
 function getPageMeta(pathname: string) {
+  if (pathname === "/project-progress") {
+    return {
+      title: "Project progress",
+      description: "A clear stakeholder view of portfolio delivery",
+    };
+  }
   if (pathname === "/teams") {
     return {
       title: "Teams",

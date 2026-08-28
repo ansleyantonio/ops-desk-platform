@@ -92,9 +92,18 @@ function toAuthUser(row: UserRow): AuthUser {
     role: row.role,
     status: row.status,
     permissions: ROLE_PERMISSIONS[row.role],
+    projectIds: [],
     lastLoginAt: row.last_login_at ?? undefined,
     createdAt: row.created_at,
   };
+}
+
+async function withProjectAccess(user: AuthUser): Promise<AuthUser> {
+  const [rows] = await pool.query<Array<{ project_id: string }>>(
+    "SELECT project_id FROM app_user_projects WHERE user_id = ? ORDER BY project_id",
+    [user.id],
+  );
+  return { ...user, projectIds: rows.map((row) => row.project_id) };
 }
 
 export async function getSessionUser(): Promise<AuthUser | null> {
@@ -115,7 +124,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     deleteCookie(SESSION_COOKIE, { path: "/" });
     return null;
   }
-  return toAuthUser(rows[0]);
+  return withProjectAccess(toAuthUser(rows[0]));
 }
 
 export async function loginWithPassword(email: string, password: string) {
@@ -148,7 +157,7 @@ export async function loginWithPassword(email: string, password: string) {
     path: "/",
     maxAge: Math.floor(SESSION_DURATION_MS / 1000),
   });
-  return { ...toAuthUser(row), lastLoginAt: now };
+  return { ...(await withProjectAccess(toAuthUser(row))), lastLoginAt: now };
 }
 
 export async function logoutSession() {
@@ -170,7 +179,14 @@ export async function requirePermission(permission: AppPermission) {
 export async function listUsers(): Promise<AuthUser[]> {
   await requirePermission("users:manage");
   const [rows] = await pool.query<UserRow[]>("SELECT * FROM app_users ORDER BY name, email");
-  return rows.map(toAuthUser);
+  const users = rows.map(toAuthUser);
+  if (users.length === 0) return [];
+  const [accessRows] = await pool.query<Array<{ user_id: string; project_id: string }>>(
+    "SELECT user_id, project_id FROM app_user_projects ORDER BY project_id",
+  );
+  const access = new Map<string, string[]>();
+  for (const row of accessRows) access.set(row.user_id, [...(access.get(row.user_id) ?? []), row.project_id]);
+  return users.map((user) => ({ ...user, projectIds: access.get(user.id) ?? [] }));
 }
 
 export async function createUser(input: {
@@ -197,7 +213,7 @@ export async function createUser(input: {
     ],
   );
   const [rows] = await pool.query<UserRow[]>("SELECT * FROM app_users WHERE id = ?", [id]);
-  return toAuthUser(rows[0]);
+  return withProjectAccess(toAuthUser(rows[0]));
 }
 
 export async function updateUser(input: {
@@ -220,7 +236,45 @@ export async function updateUser(input: {
   }
   const [rows] = await pool.query<UserRow[]>("SELECT * FROM app_users WHERE id = ?", [input.id]);
   if (!rows[0]) throw new Error("User not found");
-  return toAuthUser(rows[0]);
+  return withProjectAccess(toAuthUser(rows[0]));
+}
+
+export async function updateUserProjects(id: string, projectIds: string[]) {
+  await requirePermission("users:manage");
+  const uniqueIds = [...new Set(projectIds)];
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [users] = await connection.query<Array<{ id: string }>>(
+      "SELECT id FROM app_users WHERE id = ? LIMIT 1",
+      [id],
+    );
+    if (!users[0]) throw new Error("User not found");
+    if (uniqueIds.length) {
+      const placeholders = uniqueIds.map(() => "?").join(", ");
+      const [projects] = await connection.query<Array<{ id: string }>>(
+        `SELECT id FROM projects WHERE deleted_at IS NULL AND id IN (${placeholders})`,
+        uniqueIds,
+      );
+      if (projects.length !== uniqueIds.length) throw new Error("One or more projects were not found");
+    }
+    await connection.query("DELETE FROM app_user_projects WHERE user_id = ?", [id]);
+    const now = Date.now();
+    for (const projectId of uniqueIds) {
+      await connection.query(
+        "INSERT INTO app_user_projects (user_id, project_id, created_at) VALUES (?, ?, ?)",
+        [id, projectId, now],
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  const [rows] = await pool.query<UserRow[]>("SELECT * FROM app_users WHERE id = ?", [id]);
+  return withProjectAccess(toAuthUser(rows[0]));
 }
 
 export async function resetUserPassword(id: string, password: string) {

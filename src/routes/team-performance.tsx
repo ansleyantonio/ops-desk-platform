@@ -220,7 +220,17 @@ function CompletionInfo() {
 
 function buildMemberStats(projects: Project[], members: TeamMember[], projectFilter: string, statusFilter: string, mode: "all" | "dev" | "pm"): MemberStats[] {
   const rows = new Map<string, MemberStats>();
-  for (const member of members) rows.set(normalize(member.name), emptyStats(member.name, member));
+  const relevantMemberIds = new Set(
+    projects.flatMap((project) => [project.pmId, ...project.memberIds]).filter(Boolean),
+  );
+  const assigneeNames = new Set(
+    projects.flatMap((project) => project.modules.map((ticket) => normalize(ticket.assignee ?? ""))).filter(Boolean),
+  );
+  for (const member of members) {
+    if (relevantMemberIds.has(member.id) || assigneeNames.has(normalize(member.name))) {
+      rows.set(normalize(member.name), emptyStats(member.name, member));
+    }
+  }
   for (const project of projects) {
     if (projectFilter !== "all" && project.id !== projectFilter) continue;
     for (const ticket of project.modules) {

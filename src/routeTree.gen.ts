@@ -17,6 +17,7 @@ import { Route as TeamPerformanceRouteImport } from './routes/team-performance'
 import { Route as TeamMapRouteImport } from './routes/team-map'
 import { Route as ResponsibilityChartRouteImport } from './routes/responsibility-chart'
 import { Route as RecruitmentRouteImport } from './routes/recruitment'
+import { Route as ProjectProgressRouteImport } from './routes/project-progress'
 import { Route as PmPerformanceRouteImport } from './routes/pm-performance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DomainsRouteImport } from './routes/domains'
@@ -64,6 +65,11 @@ const ResponsibilityChartRoute = ResponsibilityChartRouteImport.update({
 const RecruitmentRoute = RecruitmentRouteImport.update({
   id: '/recruitment',
   path: '/recruitment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectProgressRoute = ProjectProgressRouteImport.update({
+  id: '/project-progress',
+  path: '/project-progress',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PmPerformanceRoute = PmPerformanceRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
+  '/project-progress': typeof ProjectProgressRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
+  '/project-progress': typeof ProjectProgressRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/domains': typeof DomainsRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
+  '/project-progress': typeof ProjectProgressRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/login'
     | '/pm-performance'
+    | '/project-progress'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/login'
     | '/pm-performance'
+    | '/project-progress'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/login'
     | '/pm-performance'
+    | '/project-progress'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   DomainsRoute: typeof DomainsRoute
   LoginRoute: typeof LoginRoute
   PmPerformanceRoute: typeof PmPerformanceRoute
+  ProjectProgressRoute: typeof ProjectProgressRoute
   RecruitmentRoute: typeof RecruitmentRoute
   ResponsibilityChartRoute: typeof ResponsibilityChartRoute
   TeamMapRoute: typeof TeamMapRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruitmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project-progress': {
+      id: '/project-progress'
+      path: '/project-progress'
+      fullPath: '/project-progress'
+      preLoaderRoute: typeof ProjectProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pm-performance': {
       id: '/pm-performance'
       path: '/pm-performance'
@@ -363,6 +383,7 @@ const rootRouteChildren: RootRouteChildren = {
   DomainsRoute: DomainsRoute,
   LoginRoute: LoginRoute,
   PmPerformanceRoute: PmPerformanceRoute,
+  ProjectProgressRoute: ProjectProgressRoute,
   RecruitmentRoute: RecruitmentRoute,
   ResponsibilityChartRoute: ResponsibilityChartRoute,
   TeamMapRoute: TeamMapRoute,

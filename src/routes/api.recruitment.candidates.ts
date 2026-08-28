@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const phaseSchema = z.enum(["initial_recruitment", "test_sent", "final_interview", "offer_made"]);
+const phaseSchema = z.enum(["initial_recruitment", "test_sent", "final_interview", "offer_made", "offer_refused", "rejected"]);
 const payloadSchema = z.object({
   name: z.string().min(1).max(160),
   email: z.string().email(),
