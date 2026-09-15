@@ -25,7 +25,18 @@ function apiUrl(endpoint) {
 }
 
 async function apiGet(endpoint) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await apiGetOnce(endpoint); }
+    catch (error) {
+      if (error.status === 404 || attempt >= 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+    }
+  }
+}
+
+async function apiGetOnce(endpoint) {
   const response = await fetch(apiUrl(endpoint), {
+    signal: AbortSignal.timeout(30000),
     headers: {
       Authorization: `Bearer ${API_TOKEN}`,
       Accept: "application/json",
@@ -34,7 +45,9 @@ async function apiGet(endpoint) {
 
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`${endpoint} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+    const error = new Error(`${endpoint} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+    error.status = response.status;
+    throw error;
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -472,6 +485,7 @@ async function backupTables(connection, timestamp) {
   const tables = [
     "projects",
     "project_modules",
+    "ticket_api_details",
     "project_risks",
     "project_tags",
     "project_members",
@@ -813,10 +827,34 @@ async function main() {
     );
   }
   const rawProjects = [];
+  const unavailableTicketIds = new Set();
 
   for (const project of selectedProjects) {
     const tickets = (await apiGet(`/api/v1/projects/${project.id}/tickets`)).data || [];
+    // Fetch complete detail snapshots before any database changes. A failed
+    // request aborts the import instead of replacing history with empty data.
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(4, tickets.length) }, async () => {
+      while (next < tickets.length) {
+        const index = next++;
+        let detail;
+        try {
+          detail = await apiGet(`/api/v1/tickets/${encodeURIComponent(tickets[index].id)}`);
+        } catch (error) {
+          if (error.status !== 404) throw error;
+          unavailableTicketIds.add(tickets[index].id);
+          console.warn(`Ticket details unavailable (404): ${tickets[index].id}; preserving stored history.`);
+          continue;
+        }
+        if (detail.id !== tickets[index].id || !Array.isArray(detail.activities?.data) ||
+            !Array.isArray(detail.timeEntries?.data)) {
+          throw new Error(`Incomplete activity/time-entry response for ${tickets[index].id}`);
+        }
+        tickets[index] = { ...tickets[index], ...detail };
+      }
+    }));
     rawProjects.push({ project, tickets });
+    console.log(`Fetched ${rawProjects.length}/${selectedProjects.length} projects; ${tickets.length} ticket details.`);
   }
 
   const projects = rawProjects.map(({ project, tickets }) => transformProject(project, tickets));
@@ -839,6 +877,7 @@ async function main() {
   let softDeletedDuplicateProjects = [];
 
   try {
+    await connection.query(fs.readFileSync(path.join(__dirname, "../src/lib/migrations/0017_add_ticket_api_details.sql"), "utf8"));
     await connection.beginTransaction();
     const [moduleGroupColumns] = await connection.query(
       `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'project_modules' AND COLUMN_NAME = 'module_group'`,
@@ -890,6 +929,20 @@ async function main() {
     await applyStoredStatusHistory(connection, projects, new Date().toISOString());
     insertedMembers = SYNC_TEAM_MEMBERS ? await upsertTeamMembers(connection, members) : [];
     softDeletedDuplicateProjects = await upsertProjects(connection, projects);
+    for (const { project, tickets } of rawProjects) {
+      for (const ticket of tickets) {
+        if (unavailableTicketIds.has(ticket.id)) continue;
+        // Stable ticket IDs replace snapshots on repeat syncs; entries never accumulate duplicates.
+        await connection.execute(`INSERT INTO ticket_api_details
+          (ticket_id, project_id, activities, time_entries, synced_at) VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE project_id=VALUES(project_id), activities=VALUES(activities),
+            time_entries=VALUES(time_entries), synced_at=VALUES(synced_at)`,
+          [ticket.id, project.id, JSON.stringify(ticket.activities.data),
+           JSON.stringify(ticket.timeEntries.data), Date.now()]);
+      }
+    }
+    await connection.execute("INSERT IGNORE INTO schema_migrations (migration_id, applied_at) VALUES (?, ?)",
+      ["0017_add_ticket_api_details", Date.now()]);
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -900,6 +953,9 @@ async function main() {
   }
 
   const summary = summarize(projects, insertedMembers, softDeletedDuplicateProjects);
+  summary.activities = rawProjects.reduce((n, p) => n + p.tickets.reduce((m, t) => m + (t.activities?.data?.length || 0), 0), 0);
+  summary.timeEntries = rawProjects.reduce((n, p) => n + p.tickets.reduce((m, t) => m + (t.timeEntries?.data?.length || 0), 0), 0);
+  summary.unavailableTicketIds = [...unavailableTicketIds];
   const reportPaths = writeReports(rawProjects, summary, timestamp, backupPath);
   console.log(JSON.stringify({ ...summary, ...reportPaths, backupPath }, null, 2));
 }

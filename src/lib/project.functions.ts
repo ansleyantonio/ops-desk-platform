@@ -89,6 +89,51 @@ export const listProjects = createServerFn({ method: "GET" }).handler(async () =
   return listProjects(user.role === "admin" ? undefined : user.projectIds);
 });
 
+const penProjectUrlSchema = z.object({ url: z.string().url().max(500) });
+
+export const fetchPenProjectBrief = createServerFn({ method: "POST" })
+  .validator((data: { url: string }) => penProjectUrlSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requirePermission } = await import("./auth.server");
+    await requirePermission("projects:view");
+    const apiBase = process.env.PEN_API_BASE || "https://ticketing-system.pengroup.com";
+    const token = process.env.PEN_API_TOKEN;
+    if (!token) throw new Error("PEN ticketing integration is not configured.");
+    const sourceUrl = new URL(data.url);
+    const allowedUrl = new URL(apiBase);
+    if (sourceUrl.protocol !== allowedUrl.protocol || sourceUrl.host !== allowedUrl.host) {
+      throw new Error(`Only ${allowedUrl.host} project links are supported.`);
+    }
+    const match = sourceUrl.pathname.match(/^\/projects\/([^/]+)\/?$/);
+    if (!match) throw new Error("Paste a project link in the format /projects/project-name.");
+    const requestedKey = normalizeProjectLookupKey(decodeURIComponent(match[1]));
+    const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+    const projectsResponse = await fetch(`${apiBase}/api/v1/projects`, { headers });
+    if (!projectsResponse.ok) throw new Error(`Ticketing API returned HTTP ${projectsResponse.status}.`);
+    const projectsPayload = await projectsResponse.json() as { data?: Array<Record<string, unknown>> };
+    const projects = Array.isArray(projectsPayload.data) ? projectsPayload.data : [];
+    const project = projects.find((item) => {
+      const values = [item.id, item.slug, item.key, item.name, item.projectUrl].filter((value): value is string => typeof value === "string");
+      return values.some((value) => normalizeProjectLookupKey(value.split("/").filter(Boolean).pop() || value) === requestedKey);
+    });
+    if (!project || typeof project.id !== "string") throw new Error("Project not found on the PEN ticketing board.");
+    const ticketsResponse = await fetch(`${apiBase}/api/v1/projects/${encodeURIComponent(project.id)}/tickets`, { headers });
+    if (!ticketsResponse.ok) throw new Error(`Ticket lookup returned HTTP ${ticketsResponse.status}.`);
+    const ticketsPayload = await ticketsResponse.json() as { data?: Array<Record<string, unknown>> };
+    const tickets = Array.isArray(ticketsPayload.data) ? ticketsPayload.data : [];
+    return {
+      id: project.id,
+      name: typeof project.name === "string" ? project.name : decodeURIComponent(match[1]),
+      description: typeof project.description === "string" ? project.description : "",
+      ticketCount: tickets.length,
+      context: tickets.map((ticket) => [ticket.title, ticket.type, ticket.module, ticket.moduleName, Array.isArray(ticket.labels) ? ticket.labels.join(" ") : ""].filter((value) => typeof value === "string").join(" ")).join("\n"),
+    };
+  });
+
+function normalizeProjectLookupKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 export const saveProject = createServerFn({ method: "POST" })
   .validator((project: Project) => projectSchema.parse(project))
   .handler(async ({ data }) => {

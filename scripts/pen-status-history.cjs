@@ -93,7 +93,7 @@ async function applyStoredStatusHistory(connection, projects, fallbackAt) {
   for (const project of projects) {
     for (const module of project.modules) {
       const previousNotes = previousNotesById.get(module.id);
-      if (!previousNotes) continue;
+
       const before = parseStatusHistory(previousNotes);
       module.notes = mergeTicketNotes(previousNotes, module.notes, fallbackAt);
       const after = parseStatusHistory(module.notes);

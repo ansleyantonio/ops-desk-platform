@@ -1,3 +1,4 @@
+import addTicketApiDetailsSql from "./migrations/0017_add_ticket_api_details.sql?raw";
 import mysql from "mysql2/promise";
 
 import {
@@ -59,6 +60,9 @@ type ProjectRow = {
 };
 
 type ModuleRow = {
+  activities?: Module["activities"];
+  timeEntries?: Module["timeEntries"];
+  activitySyncedAt?: number;
   id: string;
   project_id: string;
   name: string;
@@ -189,6 +193,7 @@ export async function ensureSchema() {
     { id: "0014_add_team_map_tree_config", sql: addTeamMapTreeConfigSql },
     { id: "0015_add_auth_rbac", sql: addAuthRbacSql },
     { id: "0016_add_user_project_access", sql: addUserProjectAccessSql },
+    { id: "0017_add_ticket_api_details", sql: addTicketApiDetailsSql },
   ] as const;
 
   const [appliedRows] = await appPool.query<Array<{ migration_id: string }>>(
@@ -296,6 +301,9 @@ function rowsToProjects(
           uatActualStart: module.uat_actual_start ?? undefined,
           uatActualEnd: module.uat_actual_end ?? undefined,
           notes: module.notes ?? undefined,
+          activities: module.activities,
+          timeEntries: module.timeEntries,
+          activitySyncedAt: module.activitySyncedAt,
         }),
       ),
       risks: (risksByProject.get(project.id) ?? []).map((risk) =>
@@ -528,6 +536,20 @@ export async function listProjects(allowedProjectIds?: string[]) {
     `,
     ids,
   );
+
+  const [detailRows] = await appPool.query<Array<{
+    ticket_id: string; activities: Module["activities"] | string;
+    time_entries: Module["timeEntries"] | string; synced_at: number;
+  }>>(`SELECT ticket_id, activities, time_entries, synced_at FROM ticket_api_details
+       WHERE project_id IN (${placeholders})`, ids);
+  const details = new Map(detailRows.map((row) => [row.ticket_id, row]));
+  for (const module of moduleRows) {
+    const detail = details.get(module.id);
+    if (!detail) continue;
+    module.activities = typeof detail.activities === "string" ? JSON.parse(detail.activities) : detail.activities;
+    module.timeEntries = typeof detail.time_entries === "string" ? JSON.parse(detail.time_entries) : detail.time_entries;
+    module.activitySyncedAt = Number(detail.synced_at);
+  }
 
   const [riskRows] = await appPool.query<RiskRow[]>(
     `

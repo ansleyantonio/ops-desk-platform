@@ -41,7 +41,31 @@ export interface ProjectTeam {
   createdAt: number;
 }
 
+export interface TicketPerson { id: string; name: string }
+export interface TicketActivityEvent {
+  id: string;
+  action: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: TicketPerson | null;
+}
+export interface TicketTimeEntry {
+  id: string;
+  kind: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationSecs: number | null;
+  running: boolean;
+  billable: boolean;
+  note: string | null;
+  user: TicketPerson | null;
+  loggedBy: TicketPerson | null;
+  loggedAt: string;
+}
 export interface Module {
+  activities?: TicketActivityEvent[];
+  timeEntries?: TicketTimeEntry[];
+  activitySyncedAt?: number;
   id: string;
   name: string;
   moduleGroup?: string;
@@ -603,6 +627,9 @@ export function normalizeModule(module: Partial<Module>): Module {
     uatActualStart: module.uatActualStart || undefined,
     uatActualEnd: module.uatActualEnd || undefined,
     notes: module.notes || undefined,
+    activities: module.activities,
+    timeEntries: module.timeEntries,
+    activitySyncedAt: module.activitySyncedAt,
   };
 }
 
