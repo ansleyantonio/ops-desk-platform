@@ -1,10 +1,18 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { activityWindow, ticketActivity } from "@/lib/dev-activity";
 import type { Project } from "@/lib/tracker-types";
+import {
+  booleanParam,
+  enumParam,
+  stringListParam,
+  stringParam,
+  useUrlParam,
+  useUrlSearchUpdater,
+} from "@/hooks/use-url-state";
 
 import {
   ArrowDown,
@@ -32,6 +40,7 @@ type SortKey =
   | "missing"
   | "loggedSeconds"
   | "eventCount";
+type ActivityFilter = "all" | "started" | "reviewed" | "moved" | "time" | "events" | "none" | "missing";
 type Member = {
   key: string;
   name: string;
@@ -53,16 +62,36 @@ export function DevActivityPanel({
   projectFilter: string;
   statusFilter: string;
 }) {
-  const [start, setStart] = useState(today);
-  const [end, setEnd] = useState(today);
-  const [onlyActive, setOnlyActive] = useState(false);
-  const [search, setSearch] = useState("");
-  const [activityFilter, setActivityFilter] = useState("all");
-  const [sort, setSort] = useState<{ key: SortKey; ascending: boolean }>({
-    key: "name",
-    ascending: true,
-  });
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const defaultDate = today();
+  const [start, setStart] = useUrlParam("activityFrom", stringParam(defaultDate, "push"));
+  const [end, setEnd] = useUrlParam("activityTo", stringParam(defaultDate, "push"));
+  const [onlyActive] = useUrlParam("activityOnly", booleanParam());
+  const [search, setSearch] = useUrlParam("activityQ", stringParam());
+  const [activityFilter] = useUrlParam(
+    "activity",
+    enumParam<ActivityFilter>(
+      ["all", "started", "reviewed", "moved", "time", "events", "none", "missing"],
+      "all",
+    ),
+  );
+  const [sortKey] = useUrlParam(
+    "activitySort",
+    enumParam<SortKey>(
+      ["name", "started", "reviewed", "moved", "missing", "loggedSeconds", "eventCount"],
+      "name",
+    ),
+  );
+  const [sortDirection] = useUrlParam(
+    "activityDir",
+    enumParam(["asc", "desc"] as const, "asc"),
+  );
+  const [expandedRows, setExpandedRows] = useUrlParam("activityExpanded", stringListParam());
+  const expanded = useMemo(() => new Set(expandedRows), [expandedRows]);
+  const sort = useMemo(
+    () => ({ key: sortKey, ascending: sortDirection === "asc" }),
+    [sortDirection, sortKey],
+  );
+  const updateUrl = useUrlSearchUpdater();
   const window = activityWindow(start, end);
   const rows = useMemo(() => {
     const range = activityWindow(start, end);
@@ -241,11 +270,17 @@ export function DevActivityPanel({
         type="button"
         className="inline-flex items-center gap-2 whitespace-nowrap rounded px-2 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() =>
-          setSort((previous) => ({
-            key,
-            ascending:
-              previous.key === key ? !previous.ascending : key === "name",
-          }))
+          updateUrl({
+            activitySort: key === "name" ? undefined : key,
+            activityDir:
+              sort.key === key
+                ? sort.ascending
+                  ? "desc"
+                  : undefined
+                : key === "name"
+                  ? undefined
+                  : "desc",
+          })
         }
       >
         {label}
@@ -287,10 +322,12 @@ export function DevActivityPanel({
                 size="sm"
                 variant={selected ? "secondary" : "ghost"}
                 aria-pressed={selected}
-                onClick={() => {
-                  setStart(range.start);
-                  setEnd(range.end);
-                }}
+                onClick={() =>
+                  updateUrl({
+                    activityFrom: range.start === defaultDate ? undefined : range.start,
+                    activityTo: range.end === defaultDate ? undefined : range.end,
+                  })
+                }
               >
                 {preset.label}
               </Button>
@@ -320,9 +357,15 @@ export function DevActivityPanel({
               type="checkbox"
               checked={onlyActive}
               onChange={(event) => {
-                setOnlyActive(event.target.checked);
-                if (event.target.checked && activityFilter === "none")
-                  setActivityFilter("all");
+                updateUrl({
+                  activityOnly: event.target.checked ? 1 : undefined,
+                  activity:
+                    event.target.checked && activityFilter === "none"
+                      ? undefined
+                      : activityFilter === "all"
+                        ? undefined
+                        : activityFilter,
+                });
               }}
             />
             Only members with activity
@@ -343,8 +386,10 @@ export function DevActivityPanel({
             <select
               value={activityFilter}
               onChange={(event) => {
-                setActivityFilter(event.target.value);
-                if (event.target.value === "none") setOnlyActive(false);
+                updateUrl({
+                  activity: event.target.value === "all" ? undefined : event.target.value,
+                  activityOnly: event.target.value === "none" ? undefined : onlyActive ? 1 : undefined,
+                });
               }}
               className="mt-1 block h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
@@ -361,10 +406,14 @@ export function DevActivityPanel({
           <Button
             variant="ghost"
             onClick={() => {
-              setSearch("");
-              setActivityFilter("all");
-              setOnlyActive(false);
-              setSort({ key: "name", ascending: true });
+              updateUrl({
+                activityQ: undefined,
+                activity: undefined,
+                activityOnly: undefined,
+                activitySort: undefined,
+                activityDir: undefined,
+                activityExpanded: undefined,
+              });
             }}
           >
             Reset table
@@ -507,12 +556,11 @@ export function DevActivityPanel({
                         className="inline-flex items-center gap-2 rounded px-2 py-2 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-expanded={expanded.has(row.rowKey)}
                         onClick={() =>
-                          setExpanded((previous) => {
-                            const next = new Set(previous);
-                            if (next.has(row.rowKey)) next.delete(row.rowKey);
-                            else next.add(row.rowKey);
-                            return next;
-                          })
+                          setExpandedRows((previous) =>
+                            previous.includes(row.rowKey)
+                              ? previous.filter((key) => key !== row.rowKey)
+                              : [...previous, row.rowKey],
+                          )
                         }
                       >
                         {expanded.has(row.rowKey) ? (

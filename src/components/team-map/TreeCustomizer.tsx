@@ -42,6 +42,7 @@ import {
 } from "@/lib/team-map-config";
 import { projectTagLabel } from "@/lib/tracker-types";
 import { cn } from "@/lib/utils";
+import { booleanParam, enumParam, stringParam, useUrlParam } from "@/hooks/use-url-state";
 
 const categoryOptions: Array<{ value: TreeCategory; label: string }> = [
   { value: "education", label: projectTagLabel.education },
@@ -65,9 +66,16 @@ export function TreeCustomizer({
   config: TeamMapTreeConfig;
   onSave: (config: TeamMapTreeConfig) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useUrlParam("treeCustomize", booleanParam());
   const [draft, setDraft] = useState(() => cloneTeamMapTreeConfig(config));
-  const [selectedProjectId, setSelectedProjectId] = useState(config.projects[0]?.id ?? "");
+  const [selectedProjectId, setSelectedProjectId] = useUrlParam(
+    "treeProject",
+    stringParam(config.projects[0]?.id ?? "", "push"),
+  );
+  const [section, setSection] = useUrlParam(
+    "treeSection",
+    enumParam(["projects", "organisation"] as const, "projects"),
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -81,7 +89,7 @@ export function TreeCustomizer({
         : (next.projects[0]?.id ?? ""),
     );
     setSaveError(null);
-  }, [config, open]);
+  }, [config, open, setSelectedProjectId]);
 
   const selectedProject = useMemo(
     () => draft.projects.find((project) => project.id === selectedProjectId),
@@ -153,11 +161,16 @@ export function TreeCustomizer({
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
           <DialogTitle>Customize organisation tree</DialogTitle>
           <DialogDescription>
-            Edit the Tree tab without changing synced teams, team members, or project records.
+            Edit custom tree details without changing teams, team members, ticket assignments, or
+            project records. Linked developers continue to refresh from live data.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="projects" className="flex min-h-0 flex-1 flex-col px-6">
+        <Tabs
+          value={section}
+          onValueChange={(value) => setSection(value as typeof section)}
+          className="flex min-h-0 flex-1 flex-col px-6"
+        >
           <TabsList className="mt-4 grid w-full max-w-[360px] grid-cols-2">
             <TabsTrigger value="projects">Delivery projects</TabsTrigger>
             <TabsTrigger value="organisation">Organisation roles</TabsTrigger>

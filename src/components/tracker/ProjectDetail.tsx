@@ -33,7 +33,7 @@ import {
   ShieldAlert,
   Activity,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   projectHealth,
   projectProgress,
@@ -56,6 +56,7 @@ import {
   type UATStatus,
 } from "@/lib/tracker-types";
 import { cn } from "@/lib/utils";
+import { enumParam, positiveIntParam, stringParam, useUrlParam, useUrlSearchUpdater } from "@/hooks/use-url-state";
 
 interface Props {
   project: Project;
@@ -118,6 +119,7 @@ const insightTone: Record<TicketInsightSeverity, string> = {
 };
 
 const PAGE_SIZE = 20;
+type ProjectTab = "module-overview" | "modules" | "stats" | "insights" | "uat" | "team" | "risks" | "timeline";
 
 type ModuleGroupStat = {
   name: string;
@@ -144,23 +146,24 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
   const [newModule, setNewModule] = useState("");
   const [newRisk, setNewRisk] = useState("");
   const [newRiskSev, setNewRiskSev] = useState<RiskSeverity>("medium");
-  const [activeTab, setActiveTab] = useState("stats");
-  const [modulePage, setModulePage] = useState(1);
-  const [moduleFilter, setModuleFilter] = useState("all");
-  const [reviewFilter, setReviewFilter] = useState<UATStatus | "all">("all");
-  const [uatPage, setUatPage] = useState(1);
-  const [riskPage, setRiskPage] = useState(1);
+  const [activeTab, setActiveTab] = useUrlParam(
+    "tab",
+    enumParam<ProjectTab>(
+      ["module-overview", "modules", "stats", "insights", "uat", "team", "risks", "timeline"],
+      "stats",
+    ),
+  );
+  const [modulePage, setModulePage] = useUrlParam("ticketPage", positiveIntParam());
+  const [moduleFilter] = useUrlParam("module", stringParam("all", "push"));
+  const [reviewFilter] = useUrlParam(
+    "review",
+    enumParam<UATStatus | "all">(["all", "pending", "in_progress", "passed", "failed"], "all"),
+  );
+  const [uatPage, setUatPage] = useUrlParam("reviewPage", positiveIntParam());
+  const [riskPage, setRiskPage] = useUrlParam("riskPage", positiveIntParam());
+  const updateUrl = useUrlSearchUpdater();
   const modules = project.modules;
   const risks = project.risks;
-
-  useEffect(() => {
-    setModulePage(1);
-    setModuleFilter("all");
-    setReviewFilter("all");
-    setActiveTab("stats");
-    setUatPage(1);
-    setRiskPage(1);
-  }, [project.id]);
 
   const moduleGroupOptions = useMemo(
     () =>
@@ -200,9 +203,6 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
     [modules, uatPage],
   );
 
-  useEffect(() => {
-    setModulePage(1);
-  }, [moduleFilter, reviewFilter]);
   const riskRows = useMemo(
     () => risks.slice((riskPage - 1) * PAGE_SIZE, riskPage * PAGE_SIZE),
     [risks, riskPage],
@@ -397,7 +397,7 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(value) => setActiveTab(value as ProjectTab)}
         className="p-5 pt-4 sm:p-7 sm:pt-5 lg:p-8 lg:pt-6"
       >
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-lg bg-muted/60 p-1.5 md:grid-cols-8">
@@ -430,10 +430,12 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
           <ModuleAnalyticsPanel
             groups={moduleGroupStats}
             onOpenTickets={(group, review = "all") => {
-              setModuleFilter(group);
-              setReviewFilter(review);
-              setModulePage(1);
-              setActiveTab("modules");
+              updateUrl({
+                module: group === "all" ? undefined : group,
+                review: review === "all" ? undefined : review,
+                ticketPage: undefined,
+                tab: "modules",
+              });
             }}
           />
         </TabsContent>
@@ -475,7 +477,15 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                <Select
+                  value={moduleFilter}
+                  onValueChange={(value) =>
+                    updateUrl({
+                      module: value === "all" ? undefined : value,
+                      ticketPage: undefined,
+                    })
+                  }
+                >
                   <SelectTrigger className="h-9 w-full bg-background sm:w-[250px]">
                     <SelectValue placeholder="All modules" />
                   </SelectTrigger>
@@ -496,7 +506,12 @@ export function ProjectDetail({ project, onUpdate, members, teams }: Props) {
                 </Select>
                 <Select
                   value={reviewFilter}
-                  onValueChange={(value) => setReviewFilter(value as UATStatus | "all")}
+                  onValueChange={(value) =>
+                    updateUrl({
+                      review: value === "all" ? undefined : value,
+                      ticketPage: undefined,
+                    })
+                  }
                 >
                   <SelectTrigger className="h-9 w-full bg-background sm:w-[190px]">
                     <SelectValue placeholder="All review states" />

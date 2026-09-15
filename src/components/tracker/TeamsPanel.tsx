@@ -15,6 +15,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  enumParam,
+  stringParam,
+  useUrlParam,
+  useUrlSearchUpdater,
+} from "@/hooks/use-url-state";
+import {
   normalizeProjectTeam,
   normalizeTeamMember,
   uid,
@@ -69,8 +75,11 @@ export function TeamsPanel({
   const [memberTitle, setMemberTitle] = useState("");
   const [memberRole, setMemberRole] = useState<TeamRole>("dev");
   const [managerId, setManagerId] = useState("none");
-  const [peopleQuery, setPeopleQuery] = useState("");
-  const [peopleRole, setPeopleRole] = useState<"all" | TeamRole>("all");
+  const [peopleQuery, setPeopleQuery] = useUrlParam("peopleQ", stringParam());
+  const [peopleRole, setPeopleRole] = useUrlParam(
+    "peopleRole",
+    enumParam<"all" | TeamRole>(["all", "pm", "dev", "qa"], "all"),
+  );
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [dropRole, setDropRole] = useState<TeamRole | null>(null);
 
@@ -79,7 +88,11 @@ export function TeamsPanel({
   const [teamPmId, setTeamPmId] = useState("none");
   const [teamDevIds, setTeamDevIds] = useState<string[]>([]);
   const [teamQaIds, setTeamQaIds] = useState<string[]>([]);
-  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingTeamId, setEditingTeamId] = useUrlParam(
+    "editTeam",
+    stringParam("", "push"),
+  );
+  const updateUrl = useUrlSearchUpdater();
 
   const membersById = useMemo(
     () => new Map(members.map((member) => [member.id, member])),
@@ -103,7 +116,7 @@ export function TeamsPanel({
   }, [members, membersById, peopleQuery, peopleRole]);
 
   const resetTeamForm = () => {
-    setEditingTeamId(null);
+    setEditingTeamId("");
     setTeamName("");
     setTeamDescription("");
     setTeamPmId("none");
@@ -112,12 +125,30 @@ export function TeamsPanel({
   };
 
   useEffect(() => {
-    if (!editingTeamId) return;
+    if (!editingTeamId) {
+      setTeamName("");
+      setTeamDescription("");
+      setTeamPmId("none");
+      setTeamDevIds([]);
+      setTeamQaIds([]);
+      return;
+    }
     const team = teams.find((item) => item.id === editingTeamId);
     if (!team) {
-      resetTeamForm();
+      updateUrl({ editTeam: undefined }, "replace");
+      setTeamName("");
+      setTeamDescription("");
+      setTeamPmId("none");
+      setTeamDevIds([]);
+      setTeamQaIds([]);
+      return;
     }
-  }, [editingTeamId, teams]);
+    setTeamName(team.name);
+    setTeamDescription(team.description ?? "");
+    setTeamPmId(team.pmId ?? "none");
+    setTeamDevIds(team.devIds);
+    setTeamQaIds(team.qaIds);
+  }, [editingTeamId, teams, updateUrl]);
 
   const addMember = () => {
     const name = memberName.trim();
@@ -149,7 +180,7 @@ export function TeamsPanel({
     if (!name) return;
     onSaveTeam(
       normalizeProjectTeam({
-        id: editingTeamId ?? uid(),
+        id: editingTeamId || uid(),
         name,
         description: teamDescription.trim() || undefined,
         pmId: teamPmId === "none" ? undefined : teamPmId,

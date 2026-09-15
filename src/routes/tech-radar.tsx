@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { enumParam, useUrlParam } from "@/hooks/use-url-state";
 import { getTechRadar } from "@/lib/tech-radar.functions";
 import type {
   TechRadarData,
@@ -61,8 +62,14 @@ function TechRadarPage() {
   const [data, setData] = useState<TechRadarData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [windowMode, setWindowMode] = useState<WindowMode>("week");
-  const [sourceFilter, setSourceFilter] = useState<"all" | TechRadarSourceId>("all");
+  const [windowMode, setWindowMode] = useUrlParam(
+    "window",
+    enumParam<WindowMode>(["today", "week"], "week"),
+  );
+  const [sourceFilter, setSourceFilter] = useUrlParam(
+    "source",
+    enumParam<"all" | TechRadarSourceId>(["all", ...Object.keys(sourceTone) as TechRadarSourceId[]], "all"),
+  );
 
   const load = async () => {
     setLoading(true);

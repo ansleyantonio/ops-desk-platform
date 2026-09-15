@@ -51,6 +51,7 @@ import {
 import { ProjectDialog } from "@/components/tracker/ProjectDialog";
 import { TeamsPanel } from "@/components/tracker/TeamsPanel";
 import { useAppShell } from "@/components/layout/app-shell-context";
+import { booleanParam, stringParam, useUrlParam } from "@/hooks/use-url-state";
 import { cn } from "@/lib/utils";
 
 const DATABASE_NAME = "project-pal";
@@ -80,9 +81,9 @@ function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [teams, setTeams] = useState<ProjectTeam[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useUrlParam("newProject", booleanParam());
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useUrlParam("q", stringParam());
   const [loaded, setLoaded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const deferredQuery = useDeferredValue(query);
@@ -133,7 +134,7 @@ function Home() {
     });
 
     return () => setShellActions({ openNewProject: null, focusSearch: null });
-  }, [setShellActions]);
+  }, [setDialogOpen, setShellActions]);
 
   const visibleProjects = useMemo(() => projects.filter((project) => !project.isDraft), [projects]);
 

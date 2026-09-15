@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { enumParam, useUrlParam } from "@/hooks/use-url-state";
 import {
   deleteProjectTeam,
   deleteTeamMember,
@@ -54,6 +55,10 @@ function TeamsHierarchyPage() {
   const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [section, setSection] = useUrlParam(
+    "section",
+    enumParam(["people", "teams", "coverage"] as const, "people"),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -220,7 +225,11 @@ function TeamsHierarchyPage() {
       {!loaded ? (
         <HierarchySkeleton />
       ) : (
-        <Tabs defaultValue="people" className="space-y-4">
+        <Tabs
+          value={section}
+          onValueChange={(value) => setSection(value as typeof section)}
+          className="space-y-4"
+        >
           <div className="rounded-lg border border-border bg-card p-2">
             <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-transparent p-0 sm:grid-cols-3">
               <TabsTrigger

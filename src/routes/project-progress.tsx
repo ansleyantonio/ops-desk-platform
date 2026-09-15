@@ -36,6 +36,7 @@ import {
 } from "recharts";
 import { listProjects } from "@/lib/project.functions";
 import { hasPermission } from "@/lib/auth";
+import { enumParam, stringParam, useUrlParam, useUrlSearchUpdater } from "@/hooks/use-url-state";
 import {
   phaseLabel,
   projectHealth,
@@ -70,10 +71,26 @@ function ProjectProgressPage() {
   const { currentUser } = Route.useRouteContext();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [healthFilter, setHealthFilter] = useState<Health | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
-  const [projectSearch, setProjectSearch] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useUrlParam(
+    "project",
+    stringParam("", "push"),
+  );
+  const [healthFilter, setHealthFilter] = useUrlParam(
+    "health",
+    enumParam<Health | "all">(
+      ["all", "delayed", "at_risk", "on_track", "completed", "unknown"],
+      "all",
+    ),
+  );
+  const [statusFilter, setStatusFilter] = useUrlParam(
+    "status",
+    enumParam<ProjectStatus | "all">(
+      ["all", "planning", "active", "on_hold", "completed"],
+      "all",
+    ),
+  );
+  const [projectSearch, setProjectSearch] = useUrlParam("q", stringParam());
+  const updateUrl = useUrlSearchUpdater();
 
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +148,7 @@ function ProjectProgressPage() {
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId);
   if (selectedProject) {
-    return <ProjectProgressDetail project={selectedProject} canOpenAdmin={hasPermission(currentUser, "projects:manage")} onBack={() => setSelectedProjectId(null)} />;
+    return <ProjectProgressDetail project={selectedProject} canOpenAdmin={hasPermission(currentUser, "projects:manage")} onBack={() => setSelectedProjectId("")} />;
   }
 
   return (
@@ -173,7 +190,7 @@ function ProjectProgressPage() {
             <label className="flex min-w-52 items-center gap-2 rounded-xl border border-border/70 bg-background/40 px-3 py-2"><Search className="h-3.5 w-3.5 text-muted-foreground" /><input value={projectSearch} onChange={(event) => setProjectSearch(event.target.value)} placeholder="Search projects" className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground" /></label>
           </div>
         </div>
-        {(healthFilter !== "all" || statusFilter !== "all" || projectSearch) && <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground"><span>Showing {portfolio.length} of {views.length} projects</span><button type="button" onClick={() => { setHealthFilter("all"); setStatusFilter("all"); setProjectSearch(""); }} className="font-medium text-primary hover:underline">Clear filters</button></div>}
+        {(healthFilter !== "all" || statusFilter !== "all" || projectSearch) && <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground"><span>Showing {portfolio.length} of {views.length} projects</span><button type="button" onClick={() => updateUrl({ health: undefined, status: undefined, q: undefined })} className="font-medium text-primary hover:underline">Clear filters</button></div>}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -245,8 +262,11 @@ type ResourceActivity = {
 };
 
 function ProjectProgressDetail({ project, canOpenAdmin, onBack }: { project: Project; canOpenAdmin: boolean; onBack: () => void }) {
-  const [period, setPeriod] = useState<ActivityPeriod>("today");
-  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useUrlParam(
+    "period",
+    enumParam<ActivityPeriod>(["today", "yesterday", "last_week"], "today"),
+  );
+  const [search, setSearch] = useUrlParam("resource", stringParam());
   const progress = projectProgress(project);
   const health = projectHealth(project);
   const periodTickets = useMemo(

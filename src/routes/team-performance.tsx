@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { enumParam, stringParam, useUrlParam, useUrlSearchUpdater } from "@/hooks/use-url-state";
 import { fetchPenProjectBrief, listProjects, listTeamData } from "@/lib/project.functions";
 import type { Module, Project, ProjectTeam, TeamMember } from "@/lib/tracker-types";
 
@@ -64,12 +65,31 @@ export function TeamPerformancePage({ mode = "all" }: { mode?: "all" | "dev" | "
   const [projects, setProjects] = useState<Project[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [teams, setTeams] = useState<ProjectTeam[]>([]);
-  const [query, setQuery] = useState("");
-  const [projectFilter, setProjectFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [completionFilter, setCompletionFilter] = useState("all");
-  const [view, setView] = useState<"tickets" | "scores" | "fit">("tickets");
+  const [query, setQuery] = useUrlParam("q", stringParam());
+  const [projectFilter, setProjectFilter] = useUrlParam(
+    "project",
+    stringParam("all", "push"),
+  );
+  const [roleFilter, setRoleFilter] = useUrlParam(
+    "role",
+    enumParam(["all", "pm", "dev", "qa"] as const, "all"),
+  );
+  const [statusFilter, setStatusFilter] = useUrlParam(
+    "status",
+    enumParam(
+      ["all", "completed", "in_progress", "not_started", "blocked", "review_failed"] as const,
+      "all",
+    ),
+  );
+  const [completionFilter, setCompletionFilter] = useUrlParam(
+    "completion",
+    enumParam(["all", "complete", "high", "medium", "low", "none"] as const, "all"),
+  );
+  const [view, setView] = useUrlParam(
+    "view",
+    enumParam(["tickets", "scores", "fit"] as const, "tickets"),
+  );
+  const updateUrl = useUrlSearchUpdater();
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
@@ -190,7 +210,7 @@ export function TeamPerformancePage({ mode = "all" }: { mode?: "all" | "dev" | "
           <SelectTrigger><SelectValue placeholder="All completion" /></SelectTrigger>
           <SelectContent><SelectItem value="all">All completion</SelectItem><SelectItem value="complete">100% complete</SelectItem><SelectItem value="high">75–99% complete</SelectItem><SelectItem value="medium">50–74% complete</SelectItem><SelectItem value="low">1–49% complete</SelectItem><SelectItem value="none">0% complete</SelectItem></SelectContent>
         </Select>
-        <Button variant="ghost" disabled={!filtersActive} onClick={() => { setQuery(""); setProjectFilter("all"); setRoleFilter("all"); setStatusFilter("all"); setCompletionFilter("all"); }}>Reset</Button>
+        <Button variant="ghost" disabled={!filtersActive} onClick={() => updateUrl({ q: undefined, project: undefined, role: undefined, status: undefined, completion: undefined })}>Reset</Button>
       </section>
 
       {mode === "dev" && <TicketSyncStatus />}
@@ -356,14 +376,15 @@ type FitCandidate = {
 
 function ProjectFitPanel({ projects, members }: { projects: Project[]; members: TeamMember[] }) {
   const [ticketingUrl, setTicketingUrl] = useState("");
-  const [projectName, setProjectName] = useState("Property Scanner");
-  const [scope, setScope] = useState("");
+  const [projectName, setProjectName] = useUrlParam("fitName", stringParam("Property Scanner"));
+  const [scope, setScope] = useUrlParam("fitScope", stringParam());
   const [ticketContext, setTicketContext] = useState("");
   const [importedTickets, setImportedTickets] = useState<number | null>(null);
   const [importError, setImportError] = useState("");
   const [importing, setImporting] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useUrlParam("fitStart", stringParam());
+  const [endDate, setEndDate] = useUrlParam("fitEnd", stringParam());
+  const updateUrl = useUrlSearchUpdater();
   const candidates = useMemo(() => recommendDevelopers(projects, members, projectName, `${scope}\n${ticketContext}`, startDate, endDate), [projects, members, projectName, scope, ticketContext, startDate, endDate]);
   const ready = projectName.trim() && startDate && endDate && startDate <= endDate;
   const importProject = async () => {
@@ -371,7 +392,7 @@ function ProjectFitPanel({ projects, members }: { projects: Project[]; members: 
     setImporting(true); setImportError("");
     try {
       const brief = await fetchPenProjectBrief({ data: { url: ticketingUrl.trim() } });
-      setProjectName(brief.name); setScope(brief.description); setTicketContext(brief.context); setImportedTickets(brief.ticketCount);
+      updateUrl({ fitName: brief.name, fitScope: brief.description }, "replace"); setTicketContext(brief.context); setImportedTickets(brief.ticketCount);
     } catch (error) {
       setImportedTickets(null); setTicketContext(""); setImportError(error instanceof Error ? error.message : "Could not load this ticketing project.");
     } finally { setImporting(false); }

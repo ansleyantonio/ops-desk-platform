@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { booleanParam, useUrlParam } from "@/hooks/use-url-state";
 import { listProjects, listTeamData, saveProject } from "@/lib/project.functions";
 import { phaseLabel } from "@/lib/tracker-types";
 import type { Project, ProjectTeam, TeamMember } from "@/lib/tracker-types";
@@ -269,7 +270,7 @@ function TeamWorkflowPage() {
   const [teams, setTeams] = useState<ProjectTeam[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useUrlParam("fullscreen", booleanParam());
 
   useEffect(() => {
     let cancelled = false;

@@ -2,19 +2,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   FolderKanban,
   GitBranch,
+  GripVertical,
   LayoutGrid,
   ShieldCheck,
+  UserPlus,
   UserRound,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TreeCustomizer } from "@/components/team-map/TreeCustomizer";
-import { listProjects, listTeamData } from "@/lib/project.functions";
+import { enumParam, stringListParam, useUrlParam } from "@/hooks/use-url-state";
+import { hasPermission } from "@/lib/auth";
+import {
+  assignDeveloperToProject,
+  listProjects,
+  listTeamData,
+} from "@/lib/project.functions";
 import {
   createInitialTeamMapTreeConfig,
   mergeLiveProjectsIntoTreeConfig,
@@ -51,18 +59,32 @@ function displayMemberSubtitle(member: TeamMember) {
 }
 
 function TeamMapPage() {
+  const { currentUser } = Route.useRouteContext();
+  const canAssignDevelopers = hasPermission(currentUser, "projects:manage");
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [teams, setTeams] = useState<ProjectTeam[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [savedTreeConfig, setSavedTreeConfig] = useState<TeamMapTreeConfig | null>(null);
-  const [mapMode, setMapMode] = useState<"pm" | "projects">("pm");
-  const [selectedProjectTags, setSelectedProjectTags] = useState<ProjectTag[]>([]);
-  const [viewMode, setViewMode] = useState<"cards" | "tree">(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("view") === "tree"
-      ? "tree"
-      : "cards",
+  const [mapMode, setMapMode] = useUrlParam(
+    "mode",
+    enumParam(["pm", "projects"] as const, "pm"),
   );
+  const [tagParams, setTagParams] = useUrlParam("tags", stringListParam());
+  const selectedProjectTags = tagParams.filter((tag): tag is ProjectTag =>
+    PROJECT_TAGS.includes(tag as ProjectTag),
+  );
+  const setSelectedProjectTags = (tags: ProjectTag[]) => setTagParams(tags);
+  const [viewMode, setViewMode] = useUrlParam(
+    "view",
+    enumParam(["cards", "tree"] as const, "cards"),
+  );
+  const [draggedDeveloperId, setDraggedDeveloperId] = useState<string | null>(null);
+  const [dropProjectId, setDropProjectId] = useState<string | null>(null);
+  const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
+  const [assignmentNotice, setAssignmentNotice] = useState<{
+    tone: "error" | "success";
+    message: string;
+  } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -99,15 +121,17 @@ function TeamMapPage() {
     [members],
   );
   const pms = useMemo(() => members.filter((member) => member.role === "pm"), [members]);
-  const effectivePmByProjectId = useMemo(() => {
-    const map = new Map<string, string>();
-
-    for (const project of projects) {
-      if (project.pmId) map.set(project.id, project.pmId);
-    }
-
-    return map;
-  }, [projects]);
+  const developers = useMemo(
+    () =>
+      members
+        .filter((member) => member.role === "dev")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [members],
+  );
+  const projectCards = useMemo(
+    () => buildProjectMapCards(projects, members, teams),
+    [members, projects, teams],
+  );
 
   const pmCards = useMemo(() => {
     return pms.map((pm) => {
@@ -125,9 +149,7 @@ function TeamMapPage() {
       }
 
       const teamMembers = [...teamMemberMap.values()].sort((a, b) => a.name.localeCompare(b.name));
-      const assignedProjects = projects.filter(
-        (project) => effectivePmByProjectId.get(project.id) === pm.id,
-      );
+      const assignedProjects = projectCards.filter((card) => card.pm?.id === pm.id);
 
       return {
         pm,
@@ -137,28 +159,7 @@ function TeamMapPage() {
         assignedProjects,
       };
     });
-  }, [effectivePmByProjectId, memberById, members, pms, projects, teams]);
-
-  const projectCards = useMemo(() => {
-    return projects
-      .map((project) => {
-        const pm = project.pmId ? memberById.get(project.pmId) : undefined;
-        const assignedMembers = project.memberIds
-          .map((memberId) => memberById.get(memberId))
-          .filter((member): member is TeamMember => Boolean(member))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        const developers = assignedMembers.filter((member) => member.role === "dev");
-        const qaMembers = assignedMembers.filter((member) => member.role === "qa");
-
-        return {
-          project,
-          pm,
-          developers,
-          qaMembers,
-        };
-      })
-      .sort((a, b) => a.project.name.localeCompare(b.project.name));
-  }, [memberById, projects]);
+  }, [memberById, members, pms, projectCards, teams]);
 
   const treeProjectSeeds = useMemo(
     () =>
@@ -206,6 +207,89 @@ function TeamMapPage() {
       .filter((member) => member.role !== "pm" && !coveredMemberIds.has(member.id))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [members, pmCards]);
+
+  const draggedDeveloper = draggedDeveloperId
+    ? memberById.get(draggedDeveloperId)
+    : undefined;
+
+  const startDeveloperDrag = (event: DragEvent<HTMLButtonElement>, member: TeamMember) => {
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("application/x-opsdesk-developer", member.id);
+    event.dataTransfer.setData("text/plain", member.id);
+    setDraggedDeveloperId(member.id);
+    setDropProjectId(null);
+    setAssignmentNotice(null);
+  };
+
+  const finishDeveloperDrag = () => {
+    setDraggedDeveloperId(null);
+    setDropProjectId(null);
+  };
+
+  const assignDeveloper = async (projectId: string, memberId: string) => {
+    const project = projects.find((candidate) => candidate.id === projectId);
+    const developer = memberById.get(memberId);
+    if (!project || developer?.role !== "dev" || savingProjectId) return;
+
+    if (project.memberIds.includes(memberId)) {
+      setAssignmentNotice({
+        tone: "success",
+        message: `${developer.name} is already directly assigned to ${project.name}.`,
+      });
+      return;
+    }
+
+    setSavingProjectId(projectId);
+    setAssignmentNotice(null);
+    try {
+      await assignDeveloperToProject({ data: { projectId, memberId } });
+      setProjects((current) =>
+        current.map((candidate) =>
+          candidate.id === projectId
+            ? { ...candidate, memberIds: [...candidate.memberIds, memberId] }
+            : candidate,
+        ),
+      );
+      setAssignmentNotice({
+        tone: "success",
+        message: `${developer.name} was assigned to ${project.name}.`,
+      });
+    } catch (error) {
+      setAssignmentNotice({
+        tone: "error",
+        message:
+          error instanceof Error ? error.message : "The developer could not be assigned.",
+      });
+    } finally {
+      setSavingProjectId(null);
+    }
+  };
+
+  const projectAssignment: ProjectAssignmentDnD | undefined = canAssignDevelopers
+    ? {
+        developerName: draggedDeveloper?.name,
+        dropProjectId,
+        savingProjectId,
+        onDragOver: (event, projectId) => {
+          if (!draggedDeveloperId || savingProjectId) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          if (dropProjectId !== projectId) setDropProjectId(projectId);
+        },
+        onDragLeave: (event, projectId) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          if (dropProjectId === projectId) setDropProjectId(null);
+        },
+        onDrop: (event, projectId) => {
+          event.preventDefault();
+          const memberId =
+            event.dataTransfer.getData("application/x-opsdesk-developer") ||
+            draggedDeveloperId;
+          finishDeveloperDrag();
+          if (memberId) void assignDeveloper(projectId, memberId);
+        },
+      }
+    : undefined;
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -263,7 +347,7 @@ function TeamMapPage() {
                 <p className="text-xs text-muted-foreground">
                   {mapMode === "pm"
                     ? "Switch between card summaries and a hierarchy tree for PM ownership."
-                    : "See every project with its PM and directly assigned contributors."}
+                    : "See every project with contributors linked from project teams and tickets."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -320,6 +404,15 @@ function TeamMapPage() {
                 ) : null}
               </div>
             </div>
+            {canAssignDevelopers ? (
+              <DeveloperAssignmentTray
+                developers={developers}
+                draggedDeveloperId={draggedDeveloperId}
+                notice={assignmentNotice}
+                onDragEnd={finishDeveloperDrag}
+                onDragStart={startDeveloperDrag}
+              />
+            ) : null}
             {mapMode === "projects" ? (
               <div className="mb-4 flex flex-col gap-2 border-y border-border/70 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -421,14 +514,9 @@ function TeamMapPage() {
                         }))}
                       />
 
-                      <MapSection
-                        title="Owned projects"
-                        emptyLabel="No projects assigned"
-                        items={assignedProjects.map((project) => ({
-                          id: project.id,
-                          label: project.name,
-                          sublabel: project.status.replace("_", " "),
-                        }))}
+                      <ProjectCoverageSection
+                        assignment={projectAssignment}
+                        projects={assignedProjects}
                       />
                     </div>
                   ))}
@@ -441,13 +529,14 @@ function TeamMapPage() {
                         Tree configuration
                       </div>
                       <div className="mt-0.5 text-[11px] text-muted-foreground">
-                        Project boxes, people, joinees, vacancies, and staffing needs are editable
-                        here and are not overwritten by sync.
+                        Project layout, joinees, vacancies, and staffing needs are editable here.
+                        Linked developers refresh from Teams and ticket assignments.
                       </div>
                     </div>
                     <TreeCustomizer config={treeConfig} onSave={persistTreeConfig} />
                   </div>
                   <FullPenOrgChart
+                    assignment={projectAssignment}
                     config={treeConfig}
                     members={members}
                     pms={pms}
@@ -479,21 +568,24 @@ function TeamMapPage() {
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {filteredProjectCards.map(({ project, pm, developers, qaMembers }) => (
-                      <div
+                      <ProjectDropZone
+                        assignment={projectAssignment}
                         key={project.id}
+                        projectId={project.id}
                         className="rounded-lg border border-border/70 bg-background px-4 py-4"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold text-foreground">
+                            <Link
+                              to="/projects/$projectId"
+                              params={{ projectId: project.id }}
+                              className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
+                            >
                               {project.name}
-                            </div>
+                            </Link>
                             <div className="mt-0.5 text-xs text-muted-foreground">
                               {phaseLabel(project.phase)} · {project.status.replace("_", " ")}
                             </div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <Badge variant="outline">{project.modules.length} tickets</Badge>
                           </div>
                         </div>
 
@@ -510,18 +602,6 @@ function TeamMapPage() {
                             Untagged
                           </div>
                         )}
-
-                        <div className="mt-3 grid grid-cols-3 gap-2">
-                          <MetricPill label="Dev" value={developers.length} />
-                          <MetricPill label="QA" value={qaMembers.length} />
-                          <MetricPill
-                            label="Open"
-                            value={
-                              project.modules.filter((module) => module.status !== "completed")
-                                .length
-                            }
-                          />
-                        </div>
 
                         <MapSection
                           title="PM owner"
@@ -540,28 +620,18 @@ function TeamMapPage() {
                           }
                         />
 
-                        <MapSection
+                        <ContributorSection
                           title="Developers"
-                          emptyLabel="No developers assigned"
-                          items={developers.map((member) => ({
-                            id: member.id,
-                            label: member.name,
-                            sublabel: displayMemberSubtitle(member),
-                            role: member.role,
-                          }))}
+                          emptyLabel="No developers linked through the project, team, or tickets"
+                          contributors={developers}
                         />
 
-                        <MapSection
+                        <ContributorSection
                           title="QA"
-                          emptyLabel="No QA assigned"
-                          items={qaMembers.map((member) => ({
-                            id: member.id,
-                            label: member.name,
-                            sublabel: displayMemberSubtitle(member),
-                            role: member.role,
-                          }))}
+                          emptyLabel="No QA linked through the project, team, or tickets"
+                          contributors={qaMembers}
                         />
-                      </div>
+                      </ProjectDropZone>
                     ))}
                   </div>
                 )}
@@ -612,20 +682,185 @@ function TeamMapPage() {
   );
 }
 
+type ContributorSource = "project" | "team" | "ticket";
+
+type ProjectContributor = {
+  id: string;
+  name: string;
+  role: "dev" | "qa";
+  title?: string;
+  sources: ContributorSource[];
+  teamNames: string[];
+};
+
 type ProjectMapCard = {
   project: Project;
   pm?: TeamMember;
-  developers: TeamMember[];
-  qaMembers: TeamMember[];
+  developers: ProjectContributor[];
+  qaMembers: ProjectContributor[];
+  teamNames: string[];
 };
 
+type ProjectAssignmentDnD = {
+  developerName?: string;
+  dropProjectId: string | null;
+  savingProjectId: string | null;
+  onDragOver: (event: DragEvent<HTMLDivElement>, projectId: string) => void;
+  onDragLeave: (event: DragEvent<HTMLDivElement>, projectId: string) => void;
+  onDrop: (event: DragEvent<HTMLDivElement>, projectId: string) => void;
+};
+
+type MutableProjectContributor = Omit<ProjectContributor, "sources" | "teamNames"> & {
+  sources: Set<ContributorSource>;
+  teamNames: Set<string>;
+};
+
+function normalizePersonName(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+function ticketAssigneeId(projectId: string, name: string) {
+  const key = normalizePersonName(name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return `ticket-assignee-${projectId}-${key || "unknown"}`;
+}
+
+function buildProjectMapCards(
+  projects: Project[],
+  members: TeamMember[],
+  teams: ProjectTeam[],
+): ProjectMapCard[] {
+  const memberById = new Map(members.map((member) => [member.id, member]));
+  const memberByName = new Map(
+    members.map((member) => [normalizePersonName(member.name), member]),
+  );
+  const pmByName = new Map(
+    members
+      .filter((member) => member.role === "pm")
+      .map((member) => [normalizePersonName(member.name), member]),
+  );
+  const teamById = new Map(teams.map((team) => [team.id, team]));
+
+  return projects
+    .map((project) => {
+      const selectedTeam = project.teamId ? teamById.get(project.teamId) : undefined;
+      const pmId =
+        project.pmId ??
+        selectedTeam?.pmId ??
+        pmByName.get(normalizePersonName(project.owner || ""))?.id;
+      const pm = pmId ? memberById.get(pmId) : undefined;
+      const relatedTeams = selectedTeam
+        ? [selectedTeam]
+        : pmId
+          ? teams.filter((team) => team.pmId === pmId)
+          : [];
+      const contributors = new Map<string, MutableProjectContributor>();
+
+      const ensureContributor = ({
+        member,
+        name,
+        role,
+        source,
+        teamName,
+      }: {
+        member?: TeamMember;
+        name?: string;
+        role?: "dev" | "qa";
+        source: ContributorSource;
+        teamName?: string;
+      }) => {
+        const displayName = member?.name ?? name?.trim();
+        const resolvedRole =
+          member?.role === "dev" || member?.role === "qa" ? member.role : role;
+        if (!displayName || !resolvedRole) return undefined;
+
+        const key = normalizePersonName(displayName);
+        const existing = contributors.get(key);
+        if (existing) {
+          existing.sources.add(source);
+          if (teamName) existing.teamNames.add(teamName);
+          return existing;
+        }
+
+        const contributor: MutableProjectContributor = {
+          id: member?.id ?? ticketAssigneeId(project.id, displayName),
+          name: displayName,
+          role: resolvedRole,
+          title: member?.title,
+          sources: new Set([source]),
+          teamNames: new Set(teamName ? [teamName] : []),
+        };
+        contributors.set(key, contributor);
+        return contributor;
+      };
+
+      for (const memberId of project.memberIds) {
+        const member = memberById.get(memberId);
+        if (member?.role === "dev" || member?.role === "qa") {
+          ensureContributor({ member, source: "project" });
+        }
+      }
+
+      for (const team of relatedTeams) {
+        for (const memberId of team.devIds) {
+          ensureContributor({
+            member: memberById.get(memberId),
+            role: "dev",
+            source: "team",
+            teamName: team.name,
+          });
+        }
+        for (const memberId of team.qaIds) {
+          ensureContributor({
+            member: memberById.get(memberId),
+            role: "qa",
+            source: "team",
+            teamName: team.name,
+          });
+        }
+      }
+
+      for (const ticket of project.modules) {
+        const assigneeName = ticket.assignee?.trim();
+        if (!assigneeName) continue;
+        const member = memberByName.get(normalizePersonName(assigneeName));
+        if (member?.role === "pm") continue;
+        const contributor = ensureContributor({
+          member,
+          name: assigneeName,
+          role: member?.role === "qa" ? "qa" : "dev",
+          source: "ticket",
+        });
+        if (!contributor) continue;
+      }
+
+      const resolvedContributors = [...contributors.values()]
+        .map((contributor): ProjectContributor => ({
+          ...contributor,
+          sources: [...contributor.sources],
+          teamNames: [...contributor.teamNames].sort((a, b) => a.localeCompare(b)),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      return {
+        project,
+        pm,
+        developers: resolvedContributors.filter((contributor) => contributor.role === "dev"),
+        qaMembers: resolvedContributors.filter((contributor) => contributor.role === "qa"),
+        teamNames: relatedTeams.map((team) => team.name).sort((a, b) => a.localeCompare(b)),
+      };
+    })
+    .sort((a, b) => a.project.name.localeCompare(b.project.name));
+}
+
 function FullPenOrgChart({
+  assignment,
   config,
   members,
   pms,
   projectCards,
   teams,
 }: {
+  assignment?: ProjectAssignmentDnD;
   config: TeamMapTreeConfig;
   members: TeamMember[];
   pms: TeamMember[];
@@ -766,7 +1001,7 @@ function FullPenOrgChart({
             >
               <div className="absolute left-[118px] right-[118px] top-0 h-0.5 bg-[#b7c4d0]" />
               {deliveryColumns.map((column) => (
-                <DeliveryColumn key={column.id} column={column} />
+                <DeliveryColumn assignment={assignment} key={column.id} column={column} />
               ))}
             </div>
           </div>
@@ -780,7 +1015,7 @@ function FullPenOrgChart({
             <ChartLegend color="bg-[#e4e9ee]" label="Developer" />
             <ChartLegend color="bg-[rgba(201,162,39,0.22)]" label="QA" />
             <span className="text-[10px] italic text-[#607080]">
-              People and assignments come from the Teams dashboard.
+              People and assignments combine Projects, Teams, and synced ticket assignees.
             </span>
           </div>
         </div>
@@ -1072,6 +1307,40 @@ type ConfiguredTreeProject = {
   source?: ProjectMapCard;
 };
 
+type ProjectBoxPerson =
+  | { kind: "linked"; contributor: ProjectContributor }
+  | { kind: "configured"; person: TreeProjectPerson };
+
+function projectBoxPeople(card: ConfiguredTreeProject): ProjectBoxPerson[] {
+  if (!card.source) {
+    return card.treeProject.people.map((person) => ({ kind: "configured", person }));
+  }
+
+  const linkedContributors = [...card.source.developers, ...card.source.qaMembers];
+  const linkedNames = new Set(
+    linkedContributors.map((contributor) => normalizePersonName(contributor.name)),
+  );
+  const configuredPeople = card.treeProject.people.filter((person) => {
+    if (linkedNames.has(normalizePersonName(person.name))) return false;
+    return (
+      person.status === "new_joinee" ||
+      person.role === "support" ||
+      person.role === "web" ||
+      person.id.startsWith("tree-person-") ||
+      person.id.startsWith("person-")
+    );
+  });
+
+  return [
+    ...linkedContributors.map(
+      (contributor): ProjectBoxPerson => ({ kind: "linked", contributor }),
+    ),
+    ...configuredPeople.map(
+      (person): ProjectBoxPerson => ({ kind: "configured", person }),
+    ),
+  ];
+}
+
 type DeliveryColumnData = {
   id: string;
   name: string;
@@ -1079,11 +1348,18 @@ type DeliveryColumnData = {
   projects: ConfiguredTreeProject[];
 };
 
-function DeliveryColumn({ column }: { column: DeliveryColumnData }) {
-  const peopleById = new Map<string, TreeProjectPerson>();
+function DeliveryColumn({
+  assignment,
+  column,
+}: {
+  assignment?: ProjectAssignmentDnD;
+  column: DeliveryColumnData;
+}) {
+  const peopleByName = new Map<string, ProjectBoxPerson>();
   for (const card of column.projects) {
-    for (const member of card.treeProject.people) {
-      peopleById.set(member.id, member);
+    for (const person of projectBoxPeople(card)) {
+      const name = person.kind === "linked" ? person.contributor.name : person.person.name;
+      peopleByName.set(normalizePersonName(name), person);
     }
   }
 
@@ -1113,7 +1389,7 @@ function DeliveryColumn({ column }: { column: DeliveryColumnData }) {
                 : "No PM assigned"}
           </div>
           <div className="mt-1 text-[9px] text-[#607080]">
-            {peopleById.size} people · {column.projects.length} projects
+            {peopleByName.size} people · {column.projects.length} projects
           </div>
         </div>
       </div>
@@ -1121,7 +1397,13 @@ function DeliveryColumn({ column }: { column: DeliveryColumnData }) {
       <div className="relative w-[calc(100%-12px)] pl-[18px] pt-3">
         <div className="absolute bottom-5 left-2 top-0 w-0.5 bg-[#b7c4d0]" />
         {column.projects.length ? (
-          column.projects.map((card) => <LiveProjectBox card={card} key={card.treeProject.id} />)
+          column.projects.map((card) => (
+            <LiveProjectBox
+              assignment={assignment}
+              card={card}
+              key={card.treeProject.id}
+            />
+          ))
         ) : (
           <div className="relative">
             <div className="absolute -left-2.5 top-[18px] h-0.5 w-2.5 bg-[#b7c4d0]" />
@@ -1135,85 +1417,80 @@ function DeliveryColumn({ column }: { column: DeliveryColumnData }) {
   );
 }
 
-function LiveProjectBox({ card }: { card: ConfiguredTreeProject }) {
-  const modules = card.source?.project.modules ?? [];
-  const openTickets = modules.filter((module) => module.status !== "completed").length;
-  const blockedTickets = modules.filter((module) => module.status === "blocked").length;
+function LiveProjectBox({
+  assignment,
+  card,
+}: {
+  assignment?: ProjectAssignmentDnD;
+  card: ConfiguredTreeProject;
+}) {
+  const people = projectBoxPeople(card);
 
   return (
     <div className="relative mb-3 last:mb-0">
       <div className="absolute -left-2.5 top-[18px] h-0.5 w-2.5 bg-[#b7c4d0]" />
-      <div className="overflow-hidden rounded-lg border border-[#d9e4ec] bg-white shadow-[0_1px_4px_rgba(18,56,95,0.05)]">
-        <div className="flex items-start justify-between gap-2 bg-[#eaf1f7] px-2.5 py-2">
+      <ProjectDropZone
+        assignment={card.source ? assignment : undefined}
+        className="overflow-hidden rounded-lg border border-[#d9e4ec] bg-white shadow-[0_1px_4px_rgba(18,56,95,0.05)]"
+        projectId={card.source?.project.id ?? card.treeProject.id}
+      >
+        <div className="bg-[#eaf1f7] px-2.5 py-2">
           <span className="text-[11px] font-semibold leading-4 text-[#12385f]">
             {card.treeProject.name}
           </span>
-          {card.source ? (
-            <span className="shrink-0 rounded-full bg-[#12385f]/10 px-1.5 py-0.5 text-[7px] font-bold text-[#12385f]">
-              {modules.length}
-            </span>
-          ) : (
-            <span className="shrink-0 rounded-full border border-[#c7d3dd] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.04em] text-[#8496a5]">
-              Custom
-            </span>
-          )}
         </div>
 
-        <div className="flex flex-wrap gap-1 px-2.5 py-2">
-          {card.treeProject.people.length ? (
-            card.treeProject.people.map((member) => (
-              <span
-                className={cn(
-                  "rounded-[5px] px-1.5 py-0.5 text-[9px] font-medium leading-[1.35]",
-                  member.status === "new_joinee"
-                    ? "bg-[#d8e7f4] text-[#24577e] shadow-[inset_0_0_0_1px_#bdd2e4]"
-                    : member.role === "qa"
-                      ? "bg-[rgba(201,162,39,0.22)] text-[#856616]"
-                      : member.role === "support"
-                        ? "bg-[rgba(76,154,84,0.18)] text-[#2f6b36]"
-                        : member.role === "web"
-                          ? "bg-[rgba(46,111,176,0.16)] text-[#1f5488]"
-                          : "bg-[#e4e9ee] text-[#42536a]",
-                )}
-                key={member.id}
-                title={`${personRoleLabel[member.role]}${member.offerSent ? " · Offer sent" : ""}`}
-              >
-                {member.name}
-                {member.offerSent ? (
-                  <span className="ml-1 border-l border-[#9ebed7] pl-1 text-[7px] font-bold uppercase tracking-[0.03em] text-[#2f6b36]">
-                    Offer sent
-                  </span>
-                ) : null}
-              </span>
-            ))
+        <div className="grid gap-1.5 px-2.5 py-2">
+          {people.length ? (
+            people.map((item) =>
+              item.kind === "linked" ? (
+                <ContributorBox
+                  compact
+                  contributor={item.contributor}
+                  key={`linked-${item.contributor.id}`}
+                />
+              ) : (
+                <ConfiguredPersonBox person={item.person} key={`configured-${item.person.id}`} />
+              ),
+            )
           ) : (
             <span className="text-[9px] italic text-[#93a2b0]">No individuals assigned</span>
           )}
         </div>
+      </ProjectDropZone>
+    </div>
+  );
+}
 
-        <div className="border-t border-dashed border-[#e4eaf0] px-2.5 py-2">
-          <span className="block text-[7px] font-semibold uppercase tracking-[0.09em] text-[#9aa7b3]">
-            More needed
-          </span>
-          <div className="mt-1 flex flex-wrap gap-1">
-            <RequirementChip label="Dev" value={card.treeProject.requirements.dev} />
-            <RequirementChip label="QA" value={card.treeProject.requirements.qa} />
-            <RequirementChip label="Support" value={card.treeProject.requirements.support} />
-          </div>
-        </div>
-
-        {card.source ? (
-          <div className="border-t border-dashed border-[#e4eaf0] px-2.5 py-2">
-            <span className="block text-[7px] font-semibold uppercase tracking-[0.09em] text-[#9aa7b3]">
-              Ticket position
-            </span>
-            <div className="mt-1 flex flex-wrap gap-1">
-              <TicketChip label="Open" value={openTickets} />
-              <TicketChip label="Blocked" tone="blocked" value={blockedTickets} />
-              <TicketChip label="Done" value={modules.length - openTickets} />
-            </div>
-          </div>
-        ) : null}
+function ConfiguredPersonBox({ person }: { person: TreeProjectPerson }) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border px-2 py-1.5",
+        person.status === "new_joinee"
+          ? "border-[#bdd2e4] bg-[#d8e7f4] text-[#24577e]"
+          : person.role === "qa"
+            ? "border-[#ddca80] bg-[rgba(201,162,39,0.12)] text-[#856616]"
+            : person.role === "support"
+              ? "border-[#b9d6bc] bg-[rgba(76,154,84,0.1)] text-[#2f6b36]"
+              : person.role === "web"
+                ? "border-[#bfd2e4] bg-[rgba(46,111,176,0.09)] text-[#1f5488]"
+                : "border-[#d3dce4] bg-[#f0f3f6] text-[#42536a]",
+      )}
+      title={`${personRoleLabel[person.role]}${person.offerSent ? " · Offer sent" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-1.5">
+        <span className="text-[9px] font-semibold leading-3">{person.name}</span>
+        <span className="shrink-0 rounded-full border border-current/20 px-1 py-0.5 text-[6px] font-semibold uppercase tracking-wide">
+          {personRoleLabel[person.role]}
+        </span>
+      </div>
+      <div className="mt-1 text-[7px] opacity-75">
+        {person.status === "new_joinee"
+          ? person.offerSent
+            ? "New joinee · offer sent"
+            : "New joinee"
+          : "Custom tree assignment"}
       </div>
     </div>
   );
@@ -1225,44 +1502,6 @@ const personRoleLabel: Record<TreeProjectPerson["role"], string> = {
   support: "Support",
   web: "Web developer",
 };
-
-function RequirementChip({ label, value }: { label: string; value: number }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px]",
-        value === 0 ? "border-[#d6dee6] text-[#aeb8c2]" : "border-[#d6dee6] text-[#5a6b7c]",
-      )}
-    >
-      <b className="font-bold">{value}</b> {label}
-    </span>
-  );
-}
-
-function TicketChip({
-  label,
-  tone = "default",
-  value,
-}: {
-  label: string;
-  tone?: "blocked" | "default";
-  value: number;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px]",
-        value === 0
-          ? "border-[#d6dee6] text-[#aeb8c2]"
-          : tone === "blocked"
-            ? "border-[#e7c4c1] bg-[#f8e9e7] text-[#9f4038]"
-            : "border-[#d6dee6] text-[#5a6b7c]",
-      )}
-    >
-      <b className="font-bold">{value}</b> {label}
-    </span>
-  );
-}
 
 function ChartLegend({ color, label }: { color: string; label: string }) {
   return (
@@ -1326,6 +1565,318 @@ function LiveChartTotals({
       <p className="mt-2 text-[10px] italic text-[#607080]">
         This chart reads the same projects, teams, and people shown elsewhere in OpsDesk.
       </p>
+    </div>
+  );
+}
+
+const contributorSourceLabel: Record<ContributorSource, string> = {
+  project: "Project",
+  team: "Team",
+  ticket: "Tickets",
+};
+
+function ContributorBox({
+  compact = false,
+  contributor,
+}: {
+  compact?: boolean;
+  contributor: ProjectContributor;
+}) {
+  const title =
+    contributor.title && contributor.title !== PEN_TICKETING_TITLE
+      ? contributor.title
+      : undefined;
+
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-card",
+        contributor.role === "qa"
+          ? "border-success/25 bg-success/[0.04]"
+          : "border-info/25 bg-info/[0.04]",
+        compact ? "px-2 py-1.5" : "px-3 py-2.5",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div
+            className={cn(
+              "font-semibold text-foreground",
+              compact ? "text-[9px] leading-3" : "truncate text-sm",
+            )}
+          >
+            {contributor.name}
+          </div>
+          {title ? (
+            <div
+              className={cn(
+                "truncate text-muted-foreground",
+                compact ? "mt-0.5 text-[7px]" : "mt-0.5 text-[11px]",
+              )}
+            >
+              {title}
+            </div>
+          ) : null}
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full border font-semibold uppercase tracking-wide",
+            contributor.role === "qa" ? roleTone.qa : roleTone.dev,
+            compact ? "px-1 py-0.5 text-[6px]" : "px-1.5 py-0.5 text-[8px]",
+          )}
+        >
+          {roleLabel[contributor.role]}
+        </span>
+      </div>
+
+      {!compact ? (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {contributor.sources.map((source) => (
+            <span
+              key={source}
+              className="rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground"
+            >
+              {contributorSourceLabel[source]}
+            </span>
+          ))}
+          {contributor.teamNames.map((teamName) => (
+            <span
+              key={teamName}
+              className="max-w-full truncate rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground"
+              title={teamName}
+            >
+              {teamName}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ContributorSection({
+  contributors,
+  emptyLabel,
+  title,
+}: {
+  contributors: ProjectContributor[];
+  emptyLabel: string;
+  title: string;
+}) {
+  return (
+    <div className="mt-4">
+      <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <ShieldCheck className="h-3.5 w-3.5" />
+        {title}
+      </div>
+      {contributors.length ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {contributors.map((contributor) => (
+            <ContributorBox key={contributor.id} contributor={contributor} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{emptyLabel}</p>
+      )}
+    </div>
+  );
+}
+
+function DeveloperAssignmentTray({
+  developers,
+  draggedDeveloperId,
+  notice,
+  onDragEnd,
+  onDragStart,
+}: {
+  developers: TeamMember[];
+  draggedDeveloperId: string | null;
+  notice: { tone: "error" | "success"; message: string } | null;
+  onDragEnd: () => void;
+  onDragStart: (event: DragEvent<HTMLButtonElement>, member: TeamMember) => void;
+}) {
+  return (
+    <div className="mb-4 rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+          <UserPlus className="h-4 w-4 text-primary" />
+          Assign developers
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Drag a developer into any project box. The direct assignment is saved automatically.
+        </p>
+      </div>
+
+      {developers.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {developers.map((developer) => (
+            <button
+              key={developer.id}
+              type="button"
+              draggable
+              aria-grabbed={draggedDeveloperId === developer.id}
+              onDragStart={(event) => onDragStart(event, developer)}
+              onDragEnd={onDragEnd}
+              className={cn(
+                "inline-flex cursor-grab items-center gap-2 rounded-md border border-info/25 bg-card px-2.5 py-2 text-left shadow-sm transition active:cursor-grabbing",
+                "hover:border-info/50 hover:bg-info/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                draggedDeveloperId === developer.id && "border-primary opacity-60 ring-2 ring-primary/25",
+              )}
+              title={`Drag ${developer.name} into a project`}
+            >
+              <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">
+                <span className="block max-w-40 truncate text-xs font-semibold text-foreground">
+                  {developer.name}
+                </span>
+                {developer.title && developer.title !== PEN_TICKETING_TITLE ? (
+                  <span className="block max-w-40 truncate text-[9px] text-muted-foreground">
+                    {developer.title}
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Add developers to the People directory before assigning them.
+        </p>
+      )}
+
+      <div aria-live="polite" className="min-h-4 pt-2 text-[10px]">
+        {notice ? (
+          <span className={notice.tone === "error" ? "text-destructive" : "text-success"}>
+            {notice.message}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ProjectDropZone({
+  assignment,
+  children,
+  className,
+  projectId,
+}: {
+  assignment?: ProjectAssignmentDnD;
+  children: ReactNode;
+  className?: string;
+  projectId: string;
+}) {
+  const isDropTarget = assignment?.dropProjectId === projectId;
+  const isSaving = assignment?.savingProjectId === projectId;
+
+  return (
+    <div
+      aria-busy={isSaving}
+      className={cn(
+        "relative transition-[border-color,box-shadow,background-color]",
+        className,
+        isDropTarget && "border-primary bg-primary/[0.06] ring-2 ring-primary/30",
+        isSaving && "pointer-events-none opacity-70",
+      )}
+      onDragOver={assignment ? (event) => assignment.onDragOver(event, projectId) : undefined}
+      onDragLeave={
+        assignment ? (event) => assignment.onDragLeave(event, projectId) : undefined
+      }
+      onDrop={assignment ? (event) => assignment.onDrop(event, projectId) : undefined}
+    >
+      {children}
+      {isDropTarget ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-primary bg-primary/10 p-3 text-center text-xs font-semibold text-primary backdrop-blur-[1px]">
+          Drop {assignment?.developerName ?? "developer"} here
+        </div>
+      ) : null}
+      {isSaving ? (
+        <div className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-full border border-border bg-card px-2 py-1 text-[9px] font-medium text-muted-foreground shadow-sm">
+          Saving assignment…
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProjectCoverageSection({
+  assignment,
+  projects,
+}: {
+  assignment?: ProjectAssignmentDnD;
+  projects: ProjectMapCard[];
+}) {
+  return (
+    <div className="mt-4">
+      <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <FolderKanban className="h-3.5 w-3.5" />
+        Owned projects
+      </div>
+      {projects.length ? (
+        <div className="space-y-3">
+          {projects.map((card) => (
+            <ProjectDropZone
+              assignment={assignment}
+              key={card.project.id}
+              projectId={card.project.id}
+              className="rounded-lg border border-border/70 bg-card px-3 py-3"
+            >
+              <div>
+                <div className="min-w-0">
+                  <Link
+                    to="/projects/$projectId"
+                    params={{ projectId: card.project.id }}
+                    className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
+                  >
+                    {card.project.name}
+                  </Link>
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">
+                    {phaseLabel(card.project.phase)} · {card.project.status.replace("_", " ")}
+                  </div>
+                </div>
+              </div>
+
+              {card.teamNames.length ? (
+                <div className="mt-2 truncate text-[9px] font-medium text-muted-foreground">
+                  {card.teamNames.join(" · ")}
+                </div>
+              ) : null}
+
+              <div className="mt-3">
+                <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Developers
+                </div>
+                {card.developers.length ? (
+                  <div className="grid gap-2">
+                    {card.developers.map((contributor) => (
+                      <ContributorBox key={contributor.id} contributor={contributor} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    No developer linked through the project, team, or tickets.
+                  </p>
+                )}
+              </div>
+
+              {card.qaMembers.length ? (
+                <div className="mt-3">
+                  <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    QA
+                  </div>
+                  <div className="grid gap-2">
+                    {card.qaMembers.map((contributor) => (
+                      <ContributorBox key={contributor.id} contributor={contributor} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </ProjectDropZone>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">No projects assigned</p>
+      )}
     </div>
   );
 }

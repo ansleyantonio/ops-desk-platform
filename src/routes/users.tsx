@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { stringParam, useUrlParam } from "@/hooks/use-url-state";
 import {
   APP_ROLES,
   hasPermission,
@@ -73,9 +74,14 @@ function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [resetTarget, setResetTarget] = useState<AuthUser | null>(null);
-  const [accessTarget, setAccessTarget] = useState<AuthUser | null>(null);
+  const [userDialog, setUserDialog] = useUrlParam("user", stringParam("", "push"));
+  const createOpen = userDialog === "new";
+  const resetTarget = userDialog.startsWith("reset:")
+    ? users.find((user) => user.id === userDialog.slice(6)) ?? null
+    : null;
+  const accessTarget = userDialog.startsWith("access:")
+    ? users.find((user) => user.id === userDialog.slice(7)) ?? null
+    : null;
 
   const load = async () => {
     setLoading(true);
@@ -140,7 +146,7 @@ function UsersPage() {
           </div>
           <div className="flex items-end">
             <Button
-              onClick={() => setCreateOpen(true)}
+              onClick={() => setUserDialog("new")}
               className="h-11 rounded-xl px-5 active:translate-y-px"
             >
               <Plus size={16} weight="bold" />
@@ -270,7 +276,7 @@ function UsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAccessTarget(user)}
+                        onClick={() => setUserDialog(`access:${user.id}`)}
                         disabled={busy}
                         title={user.role === "admin" ? "Administrators can view every project" : undefined}
                       >
@@ -280,7 +286,7 @@ function UsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setResetTarget(user)}
+                        onClick={() => setUserDialog(`reset:${user.id}`)}
                         disabled={busy}
                       >
                         <Key size={14} />
@@ -326,22 +332,21 @@ function UsersPage() {
 
       <CreateUserDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(open) => { if (!open) setUserDialog(""); }}
         onCreated={(user) =>
           setUsers((current) => [...current, user].sort((a, b) => a.name.localeCompare(b.name)))
         }
       />
       <ResetPasswordDialog
         target={resetTarget}
-        onOpenChange={(open) => !open && setResetTarget(null)}
+        onOpenChange={(open) => !open && setUserDialog("")}
       />
       <ProjectAccessDialog
         target={accessTarget}
         projects={projects}
-        onOpenChange={(open) => !open && setAccessTarget(null)}
+        onOpenChange={(open) => !open && setUserDialog("")}
         onUpdated={(updated) => {
           setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)));
-          setAccessTarget(updated);
         }}
       />
     </div>

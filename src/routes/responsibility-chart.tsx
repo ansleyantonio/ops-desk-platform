@@ -12,11 +12,18 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
-import { useMemo, useState, type ComponentType } from "react";
+import { useMemo, type ComponentType } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  enumParam,
+  stringListParam,
+  stringParam,
+  useUrlParam,
+  useUrlSearchUpdater,
+} from "@/hooks/use-url-state";
 import { cn } from "@/lib/utils";
 
 type Owner = "PM" | "Tech Lead" | "QA" | "Developer" | "Engineering Manager";
@@ -265,8 +272,16 @@ export const Route = createFileRoute("/responsibility-chart")({
 });
 
 function ResponsibilityChartPage() {
-  const [selectedOwner, setSelectedOwner] = useState<Owner | "All">("All");
-  const [query, setQuery] = useState("");
+  const [selectedOwner, setSelectedOwner] = useUrlParam(
+    "owner",
+    enumParam<Owner | "All">(["All", ...owners.map((owner) => owner.owner)], "All"),
+  );
+  const [query, setQuery] = useUrlParam("q", stringParam());
+  const [expandedResponsibilities, setExpandedResponsibilities] = useUrlParam(
+    "responsibilities",
+    stringListParam(),
+  );
+  const updateUrl = useUrlSearchUpdater();
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -361,8 +376,7 @@ function ResponsibilityChartPage() {
               variant="secondary"
               className="bg-white/10 text-white hover:bg-white/20 hover:text-white"
               onClick={() => {
-                setQuery("");
-                setSelectedOwner("All");
+                updateUrl({ q: undefined, owner: undefined });
               }}
             >
               Reset
@@ -411,6 +425,14 @@ function ResponsibilityChartPage() {
                   key={owner.owner}
                   owner={owner}
                   expanded={selectedOwner !== "All"}
+                  expandedResponsibilities={expandedResponsibilities}
+                  onResponsibilityToggle={(index, open) =>
+                    setExpandedResponsibilities((current) => {
+                      const key = String(index);
+                      if (open) return current.includes(key) ? current : [...current, key];
+                      return current.filter((item) => item !== key);
+                    })
+                  }
                 />
               ))}
             </div>
@@ -555,9 +577,13 @@ function OwnerFilter({
 function ResponsibilityOwnerColumn({
   owner,
   expanded,
+  expandedResponsibilities,
+  onResponsibilityToggle,
 }: {
   owner: (typeof owners)[number] & { items: Responsibility[] };
   expanded: boolean;
+  expandedResponsibilities: string[];
+  onResponsibilityToggle: (index: number, open: boolean) => void;
 }) {
   const Icon = owner.icon;
 
@@ -632,6 +658,10 @@ function ResponsibilityOwnerColumn({
             item={item}
             index={responsibilities.indexOf(item)}
             expanded={expanded}
+            open={expandedResponsibilities.includes(String(responsibilities.indexOf(item)))}
+            onOpenChange={(open) =>
+              onResponsibilityToggle(responsibilities.indexOf(item), open)
+            }
           />
         ))}
       </div>
@@ -643,13 +673,22 @@ function ResponsibilityActivityCard({
   item,
   index,
   expanded,
+  open,
+  onOpenChange,
 }: {
   item: Responsibility;
   index: number;
   expanded: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   return (
     <details
+      open={open}
+      onToggle={(event) => {
+        const nextOpen = event.currentTarget.open;
+        if (nextOpen !== open) onOpenChange(nextOpen);
+      }}
       className={cn(
         "group relative rounded-[8px] border border-[#d3dee7] bg-white shadow-[0_2px_6px_rgba(18,56,95,0.07)] transition-[border-color,box-shadow] open:border-[#9fb8ce] dark:border-border dark:bg-card",
         expanded && "open:shadow-[0_6px_16px_rgba(18,56,95,0.09)]",

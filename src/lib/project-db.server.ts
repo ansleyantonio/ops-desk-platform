@@ -608,6 +608,36 @@ export async function listProjects(allowedProjectIds?: string[]) {
   );
 }
 
+export async function assignDeveloperToProject(projectId: string, memberId: string) {
+  await ensureSchema();
+
+  const [projectRows] = await appPool.query<Array<{ id: string }>>(
+    "SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+    [projectId],
+  );
+  if (!projectRows.length) throw new Error("Project not found.");
+
+  const [memberRows] = await appPool.query<Array<{ id: string; role: TeamRole }>>(
+    "SELECT id, role FROM team_members WHERE id = ? LIMIT 1",
+    [memberId],
+  );
+  if (!memberRows.length || memberRows[0].role !== "dev") {
+    throw new Error("Only developers from the people directory can be assigned.");
+  }
+
+  await appPool.execute(
+    `
+      INSERT IGNORE INTO project_members (project_id, member_id, sort_order, created_at)
+      SELECT ?, ?, COALESCE(MAX(sort_order), -1) + 1, ?
+      FROM project_members
+      WHERE project_id = ?
+    `,
+    [projectId, memberId, Date.now(), projectId],
+  );
+
+  return { projectId, memberId };
+}
+
 export async function saveProject(project: Project) {
   await ensureSchema();
   const connection = await appPool.getConnection();

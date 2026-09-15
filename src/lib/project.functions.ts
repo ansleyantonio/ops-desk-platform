@@ -143,6 +143,22 @@ export const saveProject = createServerFn({ method: "POST" })
     return saveProject(data);
   });
 
+const projectDeveloperAssignmentSchema = z.object({
+  projectId: z.string().min(1).max(64),
+  memberId: z.string().min(1).max(64),
+});
+
+export const assignDeveloperToProject = createServerFn({ method: "POST" })
+  .validator((data: { projectId: string; memberId: string }) =>
+    projectDeveloperAssignmentSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { requirePermission } = await import("./auth.server");
+    await requirePermission("projects:manage");
+    const server = await import("./project-db.server");
+    return server.assignDeveloperToProject(data.projectId, data.memberId);
+  });
+
 export const deleteProject = createServerFn({ method: "POST" })
   .validator((data: { id: string }) => ({
     id: z.string().min(1).parse(data.id),
