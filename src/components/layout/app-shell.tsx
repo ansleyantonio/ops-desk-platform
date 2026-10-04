@@ -52,6 +52,7 @@ import {
   Home,
   Inbox,
   Layers3,
+  LifeBuoy,
   LogOut,
   Menu,
   MoonStar,
@@ -219,6 +220,16 @@ export function AppShell({
       to: "/project-progress" as const,
     },
     {
+      label: "Live work",
+      icon: Activity,
+      to: "/live-work" as const,
+    },
+    {
+      label: "Project recovery",
+      icon: LifeBuoy,
+      to: "/project-recovery" as const,
+    },
+    {
       label: "Teams",
       icon: UsersRound,
       to: "/teams" as const,
@@ -266,7 +277,7 @@ export function AppShell({
       : []),
   ];
   const pageItems = isViewer
-    ? allPageItems.filter((item) => item.to === "/project-progress")
+    ? allPageItems.filter((item) => item.to === "/project-progress" || item.to === "/live-work")
     : allPageItems;
 
   const viewItems = isViewer ? [] : [
@@ -596,6 +607,9 @@ function SidebarContent({
       | "/team-performance"
       | "/dev-performance"
       | "/pm-performance"
+      | "/project-recovery"
+      | "/project-progress"
+      | "/live-work"
       | "/recruitment"
       | "/responsibility-chart"
       | "/tech-radar"
@@ -636,9 +650,29 @@ function SidebarContent({
           <Search className="h-4 w-4" />
         </button>}
         <nav className="mt-5 space-y-1" aria-label="Pages">
-          {pageItems.flatMap((item) => item.children || (item.to ? [item] : [])).map((item) => item.to ? (
-            <SidebarRouteLink key={item.to} active={pathname === item.to} compact icon={item.icon} label={item.label} to={item.to} />
-          ) : null)}
+          {pageItems.map((item) =>
+            item.children
+              ? item.children.map((child) => (
+                  <SidebarRouteLink
+                    key={child.to}
+                    active={pathname === child.to}
+                    compact
+                    icon={child.icon}
+                    label={child.label}
+                    to={child.to}
+                  />
+                ))
+              : item.to
+                ? <SidebarRouteLink
+                    key={item.to}
+                    active={pathname === item.to}
+                    compact
+                    icon={item.icon}
+                    label={item.label}
+                    to={item.to}
+                  />
+                : null,
+          )}
         </nav>
         <nav className="mt-3 space-y-1" aria-label="Primary">
           {navItems.map((item) => <SidebarButton key={item.label} active={item.active} compact icon={item.icon} label={item.label} onClick={item.onClick} />)}
@@ -835,6 +869,8 @@ function SidebarRouteLink({
     | "/dev-performance"
     | "/pm-performance"
     | "/project-progress"
+    | "/live-work"
+    | "/project-recovery"
     | "/recruitment"
     | "/responsibility-chart"
     | "/tech-radar"
@@ -911,6 +947,15 @@ function BrandMark() {
 }
 
 function getPageMeta(pathname: string) {
+  if (pathname === "/live-work") {
+    return { title: "Live work", description: "Current developer tickets and running timers" };
+  }
+  if (pathname === "/project-recovery") {
+    return {
+      title: "Project recovery",
+      description: "Project-wide task, deadline, and delivery-action scrutiny",
+    };
+  }
   if (pathname === "/project-progress") {
     return {
       title: "Project progress",

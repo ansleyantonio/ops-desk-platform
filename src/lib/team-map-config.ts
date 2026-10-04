@@ -3,7 +3,7 @@ import type { ProjectTag } from "@/lib/tracker-types";
 export type TreeCategory = ProjectTag | "untagged";
 export type TreePersonRole = "dev" | "qa" | "support" | "web";
 export type TreePersonStatus = "existing" | "new_joinee";
-export type TreeOrgNodeTone = "candidate" | "vacancy";
+export type TreeOrgNodeTone = "candidate" | "manager" | "vacancy";
 
 export interface TreeProjectPerson {
   id: string;
@@ -225,10 +225,10 @@ export function createInitialTeamMapTreeConfig(seeds: TeamMapTreeProjectSeed[]):
     pmVacancies: [
       {
         id: "pm-new-hire-1",
-        name: "New hire 1",
+        name: "Ayben Uluturk",
         role: "Project Manager",
-        status: "Interview On-going",
-        tone: "vacancy",
+        status: "4 teams · 4 projects",
+        tone: "manager",
       },
       {
         id: "pm-new-hire-2",

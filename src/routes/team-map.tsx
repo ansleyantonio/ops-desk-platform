@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  ChevronDown,
   FolderKanban,
   GitBranch,
   GripVertical,
@@ -1048,7 +1049,7 @@ function PenMark() {
 }
 
 function AiInnovationLayer() {
-  const teamMembers = ["Richard", "Doncho", "Chinmoy"];
+  const teamMembers = ["Doncho", "Chinmoy"];
 
   return (
     <>
@@ -1072,8 +1073,8 @@ function AiInnovationLayer() {
         </div>
 
         <div className="mx-auto h-[22px] w-0.5 bg-[#b7c4d0]" />
-        <div className="relative grid grid-cols-3 gap-6 px-5 pt-[22px]">
-          <div className="absolute left-[calc(16.667%+10px)] right-[calc(16.667%+10px)] top-0 h-0.5 bg-[#b7c4d0]" />
+        <div className="relative grid grid-cols-2 gap-6 px-5 pt-[22px]">
+          <div className="absolute left-1/4 right-1/4 top-0 h-0.5 bg-[#b7c4d0]" />
           {teamMembers.map((member) => (
             <div className="relative flex justify-center" key={member}>
               <div className="absolute left-1/2 top-[-22px] h-[22px] w-0.5 bg-[#b7c4d0]" />
@@ -1156,7 +1157,7 @@ function UkEngineeringQualityLayer({
                   name={node.name}
                   role={node.role}
                   sublabel={node.status}
-                  tone="vacancy"
+                  tone={node.tone}
                 />
               </div>
             ))}
@@ -1355,6 +1356,7 @@ function DeliveryColumn({
   assignment?: ProjectAssignmentDnD;
   column: DeliveryColumnData;
 }) {
+  const [showMembers, setShowMembers] = useState(false);
   const peopleByName = new Map<string, ProjectBoxPerson>();
   for (const card of column.projects) {
     for (const person of projectBoxPeople(card)) {
@@ -1375,18 +1377,35 @@ function DeliveryColumn({
         )}
       >
         <div className="px-3 pb-2.5 pt-2.5">
-          <div className="text-sm font-semibold text-[#12385f]">{column.name}</div>
-          <div
-            className={cn(
-              "mt-0.5 text-[10px]",
-              column.leadNames.length ? "text-[#1f5488]" : "italic text-[#8496a5]",
-            )}
-          >
-            {column.leadNames.length
-              ? `PM: ${column.leadNames.join(", ")}`
-              : column.id === "untagged-projects"
-                ? "Add a project tag to classify"
-                : "No PM assigned"}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[#12385f]">{column.name}</div>
+              <div
+                className={cn(
+                  "mt-0.5 text-[10px]",
+                  column.leadNames.length ? "text-[#1f5488]" : "italic text-[#8496a5]",
+                )}
+              >
+                {column.leadNames.length
+                  ? `PM: ${column.leadNames.join(", ")}`
+                  : column.id === "untagged-projects"
+                    ? "Add a project tag to classify"
+                    : "No PM assigned"}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#cbdbe8] bg-white/70 px-1.5 py-1 text-[9px] font-semibold text-[#1f5488] transition-colors hover:bg-white disabled:cursor-default disabled:opacity-50"
+              disabled={!peopleByName.size}
+              aria-expanded={showMembers}
+              onClick={() => setShowMembers((current) => !current)}
+            >
+              {peopleByName.size ? (showMembers ? "Hide members" : "Show members") : "No members"}
+              <ChevronDown
+                aria-hidden="true"
+                className={cn("h-3 w-3 transition-transform", showMembers && "rotate-180")}
+              />
+            </button>
           </div>
           <div className="mt-1 text-[9px] text-[#607080]">
             {peopleByName.size} people · {column.projects.length} projects
@@ -1402,6 +1421,7 @@ function DeliveryColumn({
               assignment={assignment}
               card={card}
               key={card.treeProject.id}
+              showPeople={showMembers}
             />
           ))
         ) : (
@@ -1420,9 +1440,11 @@ function DeliveryColumn({
 function LiveProjectBox({
   assignment,
   card,
+  showPeople,
 }: {
   assignment?: ProjectAssignmentDnD;
   card: ConfiguredTreeProject;
+  showPeople: boolean;
 }) {
   const people = projectBoxPeople(card);
 
@@ -1441,7 +1463,7 @@ function LiveProjectBox({
         </div>
 
         <div className="grid gap-1.5 px-2.5 py-2">
-          {people.length ? (
+          {people.length && showPeople ? (
             people.map((item) =>
               item.kind === "linked" ? (
                 <ContributorBox
@@ -1453,6 +1475,10 @@ function LiveProjectBox({
                 <ConfiguredPersonBox person={item.person} key={`configured-${item.person.id}`} />
               ),
             )
+          ) : people.length ? (
+            <span className="text-[9px] italic text-[#8496a5]">
+              {people.length} team {people.length === 1 ? "member" : "members"} hidden
+            </span>
           ) : (
             <span className="text-[9px] italic text-[#93a2b0]">No individuals assigned</span>
           )}

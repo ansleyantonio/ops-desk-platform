@@ -32,7 +32,7 @@ const orgNodeSchema = z.object({
   name: z.string().min(1),
   role: z.string().min(1),
   status: z.string().optional(),
-  tone: z.enum(["candidate", "vacancy"]),
+  tone: z.enum(["candidate", "manager", "vacancy"]),
 });
 
 const configSchema: z.ZodType<TeamMapTreeConfig> = z.object({

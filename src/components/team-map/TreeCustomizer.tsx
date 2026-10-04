@@ -499,7 +499,7 @@ function OrganisationEditor({
     <div className="mt-4 space-y-5 pb-4">
       <OrgSection
         title="Project manager vacancies"
-        description="Interview status and labels shown beneath the UK engineering lead."
+        description="Project manager coverage and vacancy labels shown beneath the UK engineering lead."
         nodes={draft.pmVacancies}
         onAdd={() =>
           mutate((next) =>
@@ -512,6 +512,7 @@ function OrganisationEditor({
             }),
           )
         }
+        allowTone
         onChange={(id, update) =>
           mutate((next) => {
             const node = next.pmVacancies.find((candidate) => candidate.id === id);
@@ -655,6 +656,7 @@ function OrgSection({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="candidate">Candidate</SelectItem>
+                    <SelectItem value="manager">Project manager</SelectItem>
                     <SelectItem value="vacancy">Vacancy</SelectItem>
                   </SelectContent>
                 </Select>

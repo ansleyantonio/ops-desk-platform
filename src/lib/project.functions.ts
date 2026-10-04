@@ -138,9 +138,9 @@ export const saveProject = createServerFn({ method: "POST" })
   .validator((project: Project) => projectSchema.parse(project))
   .handler(async ({ data }) => {
     const { requirePermission } = await import("./auth.server");
-    await requirePermission("projects:manage");
+    const user = await requirePermission("projects:manage");
     const { saveProject } = await import("./project-db.server");
-    return saveProject(data);
+    return saveProject(data, { id: user.id, name: user.name });
   });
 
 const projectDeveloperAssignmentSchema = z.object({

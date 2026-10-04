@@ -17,15 +17,18 @@ import { Route as TeamPerformanceRouteImport } from './routes/team-performance'
 import { Route as TeamMapRouteImport } from './routes/team-map'
 import { Route as ResponsibilityChartRouteImport } from './routes/responsibility-chart'
 import { Route as RecruitmentRouteImport } from './routes/recruitment'
+import { Route as ProjectRecoveryRouteImport } from './routes/project-recovery'
 import { Route as ProjectProgressRouteImport } from './routes/project-progress'
 import { Route as PmPerformanceRouteImport } from './routes/pm-performance'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LiveWorkRouteImport } from './routes/live-work'
 import { Route as DomainsRouteImport } from './routes/domains'
 import { Route as DevPerformanceRouteImport } from './routes/dev-performance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ApiRecruitmentInstructionsRouteImport } from './routes/api.recruitment.instructions'
 import { Route as ApiRecruitmentCandidatesRouteImport } from './routes/api.recruitment.candidates'
+import { Route as ApiPerformanceEmailDispatchRouteImport } from './routes/api.performance-email.dispatch'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -67,6 +70,11 @@ const RecruitmentRoute = RecruitmentRouteImport.update({
   path: '/recruitment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectRecoveryRoute = ProjectRecoveryRouteImport.update({
+  id: '/project-recovery',
+  path: '/project-recovery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectProgressRoute = ProjectProgressRouteImport.update({
   id: '/project-progress',
   path: '/project-progress',
@@ -80,6 +88,11 @@ const PmPerformanceRoute = PmPerformanceRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveWorkRoute = LiveWorkRouteImport.update({
+  id: '/live-work',
+  path: '/live-work',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DomainsRoute = DomainsRouteImport.update({
@@ -114,14 +127,22 @@ const ApiRecruitmentCandidatesRoute =
     path: '/api/recruitment/candidates',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPerformanceEmailDispatchRoute =
+  ApiPerformanceEmailDispatchRouteImport.update({
+    id: '/api/performance-email/dispatch',
+    path: '/api/performance-email/dispatch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
+  '/live-work': typeof LiveWorkRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
   '/project-progress': typeof ProjectProgressRoute
+  '/project-recovery': typeof ProjectRecoveryRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -131,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/performance-email/dispatch': typeof ApiPerformanceEmailDispatchRoute
   '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
   '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
@@ -138,9 +160,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
+  '/live-work': typeof LiveWorkRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
   '/project-progress': typeof ProjectProgressRoute
+  '/project-recovery': typeof ProjectRecoveryRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -150,6 +174,7 @@ export interface FileRoutesByTo {
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/performance-email/dispatch': typeof ApiPerformanceEmailDispatchRoute
   '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
   '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
@@ -158,9 +183,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dev-performance': typeof DevPerformanceRoute
   '/domains': typeof DomainsRoute
+  '/live-work': typeof LiveWorkRoute
   '/login': typeof LoginRoute
   '/pm-performance': typeof PmPerformanceRoute
   '/project-progress': typeof ProjectProgressRoute
+  '/project-recovery': typeof ProjectRecoveryRoute
   '/recruitment': typeof RecruitmentRoute
   '/responsibility-chart': typeof ResponsibilityChartRoute
   '/team-map': typeof TeamMapRoute
@@ -170,6 +197,7 @@ export interface FileRoutesById {
   '/tech-radar': typeof TechRadarRoute
   '/users': typeof UsersRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/api/performance-email/dispatch': typeof ApiPerformanceEmailDispatchRoute
   '/api/recruitment/candidates': typeof ApiRecruitmentCandidatesRoute
   '/api/recruitment/instructions': typeof ApiRecruitmentInstructionsRoute
 }
@@ -179,9 +207,11 @@ export interface FileRouteTypes {
     | '/'
     | '/dev-performance'
     | '/domains'
+    | '/live-work'
     | '/login'
     | '/pm-performance'
     | '/project-progress'
+    | '/project-recovery'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -191,6 +221,7 @@ export interface FileRouteTypes {
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/performance-email/dispatch'
     | '/api/recruitment/candidates'
     | '/api/recruitment/instructions'
   fileRoutesByTo: FileRoutesByTo
@@ -198,9 +229,11 @@ export interface FileRouteTypes {
     | '/'
     | '/dev-performance'
     | '/domains'
+    | '/live-work'
     | '/login'
     | '/pm-performance'
     | '/project-progress'
+    | '/project-recovery'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -210,6 +243,7 @@ export interface FileRouteTypes {
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/performance-email/dispatch'
     | '/api/recruitment/candidates'
     | '/api/recruitment/instructions'
   id:
@@ -217,9 +251,11 @@ export interface FileRouteTypes {
     | '/'
     | '/dev-performance'
     | '/domains'
+    | '/live-work'
     | '/login'
     | '/pm-performance'
     | '/project-progress'
+    | '/project-recovery'
     | '/recruitment'
     | '/responsibility-chart'
     | '/team-map'
@@ -229,6 +265,7 @@ export interface FileRouteTypes {
     | '/tech-radar'
     | '/users'
     | '/projects/$projectId'
+    | '/api/performance-email/dispatch'
     | '/api/recruitment/candidates'
     | '/api/recruitment/instructions'
   fileRoutesById: FileRoutesById
@@ -237,9 +274,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DevPerformanceRoute: typeof DevPerformanceRoute
   DomainsRoute: typeof DomainsRoute
+  LiveWorkRoute: typeof LiveWorkRoute
   LoginRoute: typeof LoginRoute
   PmPerformanceRoute: typeof PmPerformanceRoute
   ProjectProgressRoute: typeof ProjectProgressRoute
+  ProjectRecoveryRoute: typeof ProjectRecoveryRoute
   RecruitmentRoute: typeof RecruitmentRoute
   ResponsibilityChartRoute: typeof ResponsibilityChartRoute
   TeamMapRoute: typeof TeamMapRoute
@@ -249,6 +288,7 @@ export interface RootRouteChildren {
   TechRadarRoute: typeof TechRadarRoute
   UsersRoute: typeof UsersRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+  ApiPerformanceEmailDispatchRoute: typeof ApiPerformanceEmailDispatchRoute
   ApiRecruitmentCandidatesRoute: typeof ApiRecruitmentCandidatesRoute
   ApiRecruitmentInstructionsRoute: typeof ApiRecruitmentInstructionsRoute
 }
@@ -311,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruitmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/project-recovery': {
+      id: '/project-recovery'
+      path: '/project-recovery'
+      fullPath: '/project-recovery'
+      preLoaderRoute: typeof ProjectRecoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/project-progress': {
       id: '/project-progress'
       path: '/project-progress'
@@ -330,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live-work': {
+      id: '/live-work'
+      path: '/live-work'
+      fullPath: '/live-work'
+      preLoaderRoute: typeof LiveWorkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/domains': {
@@ -374,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRecruitmentCandidatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/performance-email/dispatch': {
+      id: '/api/performance-email/dispatch'
+      path: '/api/performance-email/dispatch'
+      fullPath: '/api/performance-email/dispatch'
+      preLoaderRoute: typeof ApiPerformanceEmailDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -381,9 +442,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DevPerformanceRoute: DevPerformanceRoute,
   DomainsRoute: DomainsRoute,
+  LiveWorkRoute: LiveWorkRoute,
   LoginRoute: LoginRoute,
   PmPerformanceRoute: PmPerformanceRoute,
   ProjectProgressRoute: ProjectProgressRoute,
+  ProjectRecoveryRoute: ProjectRecoveryRoute,
   RecruitmentRoute: RecruitmentRoute,
   ResponsibilityChartRoute: ResponsibilityChartRoute,
   TeamMapRoute: TeamMapRoute,
@@ -393,6 +456,7 @@ const rootRouteChildren: RootRouteChildren = {
   TechRadarRoute: TechRadarRoute,
   UsersRoute: UsersRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+  ApiPerformanceEmailDispatchRoute: ApiPerformanceEmailDispatchRoute,
   ApiRecruitmentCandidatesRoute: ApiRecruitmentCandidatesRoute,
   ApiRecruitmentInstructionsRoute: ApiRecruitmentInstructionsRoute,
 }

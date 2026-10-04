@@ -1,5 +1,9 @@
 import addTicketApiDetailsSql from "./migrations/0017_add_ticket_api_details.sql?raw";
-import mysql from "mysql2/promise";
+import addRecoveryTasksSql from "./migrations/0018_add_recovery_tasks.sql?raw";
+import addProjectRecoveryModeSql from "./migrations/0019_add_project_recovery_mode.sql?raw";
+import addPerformanceEmailSql from "./migrations/0020_add_performance_email.sql?raw";
+import { randomUUID } from "node:crypto";
+import mysql, { type PoolConnection, type RowDataPacket } from "mysql2/promise";
 
 import {
   type ProjectPhase,
@@ -194,6 +198,9 @@ export async function ensureSchema() {
     { id: "0015_add_auth_rbac", sql: addAuthRbacSql },
     { id: "0016_add_user_project_access", sql: addUserProjectAccessSql },
     { id: "0017_add_ticket_api_details", sql: addTicketApiDetailsSql },
+    { id: "0018_add_recovery_tasks", sql: addRecoveryTasksSql },
+    { id: "0019_add_project_recovery_mode", sql: addProjectRecoveryModeSql },
+    { id: "0020_add_performance_email", sql: addPerformanceEmailSql },
   ] as const;
 
   const [appliedRows] = await appPool.query<Array<{ migration_id: string }>>(
@@ -638,13 +645,197 @@ export async function assignDeveloperToProject(projectId: string, memberId: stri
   return { projectId, memberId };
 }
 
-export async function saveProject(project: Project) {
+type RecoveryActor = { id: string; name: string };
+
+type RecoveryAuditDraft = {
+  taskId?: string;
+  eventType: string;
+  details: Record<string, unknown>;
+};
+
+const recoveryProjectFields = [
+  ["targetDate", "target_date"],
+  ["status", "status"],
+  ["phase", "phase"],
+  ["owner", "owner"],
+  ["pmId", "pm_id"],
+] as const;
+
+function previousModuleSnapshot(module: ModuleRow) {
+  return {
+    name: module.name,
+    assignee: module.assignee,
+    effortDays: module.effort_days,
+    status: module.status,
+    plannedStart: module.planned_start,
+    plannedEnd: module.planned_end,
+    uat: module.uat,
+    uatPlannedStart: module.uat_planned_start,
+    uatPlannedEnd: module.uat_planned_end,
+    uatActualStart: module.uat_actual_start,
+    uatActualEnd: module.uat_actual_end,
+    moduleGroup: module.module_group,
+    sprintGroup: module.sprint_group,
+    notes: module.notes,
+  };
+}
+
+function nextModuleSnapshot(module: Module) {
+  return {
+    name: module.name,
+    assignee: module.assignee ?? null,
+    effortDays: module.effortDays ?? null,
+    status: module.status,
+    plannedStart: module.plannedStart ?? null,
+    plannedEnd: module.plannedEnd ?? null,
+    uat: module.uat,
+    uatPlannedStart: module.uatPlannedStart ?? null,
+    uatPlannedEnd: module.uatPlannedEnd ?? null,
+    uatActualStart: module.uatActualStart ?? null,
+    uatActualEnd: module.uatActualEnd ?? null,
+    moduleGroup: module.moduleGroup ?? null,
+    sprintGroup: module.sprintGroup ?? null,
+    notes: module.notes ?? null,
+  };
+}
+
+function compactAuditValue(value: unknown) {
+  if (typeof value === "string" && value.length > 500) {
+    return `${value.slice(0, 497)}...`;
+  }
+  return value ?? null;
+}
+
+async function syncRecoveryTasksForProject(
+  connection: PoolConnection,
+  projectId: string,
+  now: number,
+) {
+  await connection.execute(
+    `
+      INSERT IGNORE INTO recovery_tasks (
+        id, project_id, task_id, owner_id, pm_id, tech_lead_id,
+        original_estimate_days, committed_completion_date,
+        actual_completion_date, qa_rejection_count, scope_changed,
+        blocker_raised_date, resource_reassigned, root_cause,
+        status, created_at, updated_at
+      )
+      SELECT
+        LEFT(CONCAT('recovery-', SHA2(CONCAT(p.id, ':', module.id), 256)), 64),
+        p.id,
+        module.id,
+        (
+          SELECT member.id
+          FROM team_members member
+          WHERE LOWER(TRIM(member.name)) = LOWER(TRIM(module.assignee))
+          LIMIT 1
+        ),
+        p.pm_id,
+        (
+          SELECT membership.member_id
+          FROM project_members membership
+          INNER JOIN team_members member
+            ON member.id = membership.member_id AND member.role = 'dev'
+          WHERE membership.project_id = p.id
+          ORDER BY membership.sort_order ASC
+          LIMIT 1
+        ),
+        module.effort_days,
+        NULLIF(module.planned_end, ''),
+        NULL,
+        CASE WHEN module.uat = 'failed' THEN 1 ELSE 0 END,
+        0,
+        NULL,
+        0,
+        CASE WHEN module.uat = 'failed' THEN 'qa_issue' ELSE NULL END,
+        CASE
+          WHEN module.status = 'blocked' OR module.uat = 'failed' THEN 'red'
+          WHEN module.planned_end IS NOT NULL
+            AND module.planned_end <> ''
+            AND module.planned_end < CURRENT_DATE() THEN 'red'
+          WHEN module.planned_end IS NULL OR module.planned_end = '' THEN 'amber'
+          WHEN DATEDIFF(module.planned_end, CURRENT_DATE()) <= 3 THEN 'amber'
+          ELSE 'green'
+        END,
+        ?,
+        ?
+      FROM projects p
+      INNER JOIN project_modules module ON module.project_id = p.id
+      WHERE p.id = ? AND p.deleted_at IS NULL
+    `,
+    [now, now, projectId],
+  );
+
+  await connection.execute(
+    `
+      UPDATE recovery_tasks recovery
+      INNER JOIN project_modules module
+        ON module.project_id = recovery.project_id
+        AND module.id = recovery.task_id
+      SET
+        recovery.qa_rejection_count = GREATEST(
+          recovery.qa_rejection_count,
+          CASE WHEN module.uat = 'failed' THEN 1 ELSE 0 END
+        ),
+        recovery.root_cause = CASE
+          WHEN module.uat = 'failed' AND recovery.root_cause IS NULL THEN 'qa_issue'
+          ELSE recovery.root_cause
+        END,
+        recovery.status = CASE
+          WHEN module.status = 'blocked' OR module.uat = 'failed' THEN 'red'
+          WHEN recovery.committed_completion_date IS NOT NULL
+            AND recovery.committed_completion_date < CURRENT_DATE()
+            AND module.status <> 'completed' THEN 'red'
+          WHEN recovery.committed_completion_date IS NULL
+            AND recovery.status = 'green' THEN 'amber'
+          ELSE recovery.status
+        END
+      WHERE recovery.project_id = ?
+    `,
+    [projectId],
+  );
+}
+
+export async function saveProject(project: Project, actor?: RecoveryActor) {
   await ensureSchema();
   const connection = await appPool.getConnection();
   const now = Date.now();
 
   try {
     await connection.beginTransaction();
+
+    const [modeRows] = await connection.query<
+      Array<RowDataPacket & { active: number }>
+    >(
+      "SELECT active FROM project_recovery_modes WHERE project_id = ? LIMIT 1 FOR UPDATE",
+      [project.id],
+    );
+    const recoveryActive = Boolean(modeRows[0]?.active);
+    let previousProject:
+      | (RowDataPacket & {
+          target_date: string;
+          status: string;
+          phase: string;
+          owner: string;
+          pm_id: string | null;
+        })
+      | undefined;
+    let previousModules: ModuleRow[] = [];
+    if (recoveryActive) {
+      const [projectRows] = await connection.query<
+        Array<NonNullable<typeof previousProject>>
+      >(
+        `SELECT target_date, status, phase, owner, pm_id
+           FROM projects WHERE id = ? LIMIT 1`,
+        [project.id],
+      );
+      previousProject = projectRows[0];
+      const [moduleRows] = await connection.query<ModuleRow[]>(
+        "SELECT * FROM project_modules WHERE project_id = ?",
+        [project.id],
+      );
+      previousModules = moduleRows;
+    }
 
     await connection.execute(
       `
@@ -765,6 +956,121 @@ export async function saveProject(project: Project) {
           index,
         ],
       );
+    }
+
+    if (recoveryActive) {
+      await syncRecoveryTasksForProject(connection, project.id, now);
+
+      const auditEvents: RecoveryAuditDraft[] = [];
+      if (previousProject) {
+        const projectChanges: Record<string, { from: unknown; to: unknown }> = {};
+        const nextProject = project as unknown as Record<string, unknown>;
+        const oldProject = previousProject as unknown as Record<string, unknown>;
+        for (const [nextKey, previousKey] of recoveryProjectFields) {
+          const from = compactAuditValue(oldProject[previousKey]);
+          const to = compactAuditValue(nextProject[nextKey]);
+          if (from !== to) projectChanges[nextKey] = { from, to };
+        }
+        if (Object.keys(projectChanges).length > 0) {
+          auditEvents.push({
+            eventType: "project_changed",
+            details: { changes: projectChanges },
+          });
+        }
+      }
+
+      const beforeById = new Map(
+        previousModules.map((module) => [module.id, module]),
+      );
+      const afterById = new Map(
+        project.modules.map((module) => [module.id, module]),
+      );
+      for (const module of project.modules) {
+        const previous = beforeById.get(module.id);
+        if (!previous) {
+          auditEvents.push({
+            taskId: module.id,
+            eventType: "task_added",
+            details: { task: nextModuleSnapshot(module) },
+          });
+          continue;
+        }
+        const before = previousModuleSnapshot(previous);
+        const after = nextModuleSnapshot(module);
+        const changes: Record<string, { from: unknown; to: unknown }> = {};
+        for (const key of Object.keys(after) as Array<keyof typeof after>) {
+          if (before[key] !== after[key]) {
+            changes[key] = {
+              from: compactAuditValue(before[key]),
+              to: compactAuditValue(after[key]),
+            };
+          }
+        }
+        if (Object.keys(changes).length === 0) continue;
+        auditEvents.push({
+          taskId: module.id,
+          eventType: "task_changed",
+          details: { changes },
+        });
+        if (changes.plannedEnd || changes.effortDays) {
+          await connection.execute(
+            `UPDATE recovery_tasks
+                SET scope_changed = 1,
+                    status = CASE WHEN status = 'red' THEN status ELSE 'amber' END,
+                    updated_at = ?
+              WHERE project_id = ? AND task_id = ?`,
+            [now, project.id, module.id],
+          );
+        }
+        if (changes.assignee) {
+          await connection.execute(
+            `UPDATE recovery_tasks
+                SET resource_reassigned = 1,
+                    status = CASE WHEN status = 'red' THEN status ELSE 'amber' END,
+                    updated_at = ?
+              WHERE project_id = ? AND task_id = ?`,
+            [now, project.id, module.id],
+          );
+        }
+        if (changes.status && module.status === "blocked") {
+          await connection.execute(
+            `UPDATE recovery_tasks
+                SET blocker_raised_date = COALESCE(blocker_raised_date, ?),
+                    status = 'red', updated_at = ?
+              WHERE project_id = ? AND task_id = ?`,
+            [new Date(now).toISOString().slice(0, 10), now, project.id, module.id],
+          );
+        }
+      }
+      for (const previous of previousModules) {
+        if (afterById.has(previous.id)) continue;
+        auditEvents.push({
+          taskId: previous.id,
+          eventType: "task_removed",
+          details: { task: previousModuleSnapshot(previous) },
+        });
+      }
+
+      for (const event of auditEvents) {
+        await connection.execute(
+          `
+            INSERT INTO recovery_events (
+              id, project_id, task_id, event_type,
+              actor_id, actor_name, details, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            randomUUID(),
+            project.id,
+            event.taskId ?? null,
+            event.eventType,
+            actor?.id ?? null,
+            actor?.name ?? "System sync",
+            JSON.stringify(event.details),
+            now,
+          ],
+        );
+      }
     }
 
     for (const risk of project.risks) {

@@ -1,0 +1,10 @@
+[Unit]
+Description=Send previous weekday's OpsDesk performance email at 06:30 UTC
+
+[Timer]
+OnCalendar=*-*-* 06:30:00 UTC
+Persistent=true
+Unit=opsdesk-performance-email.service
+
+[Install]
+WantedBy=timers.target

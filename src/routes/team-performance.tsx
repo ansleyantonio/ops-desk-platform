@@ -1,5 +1,7 @@
 import { TicketSyncStatus } from "@/components/ticket-sync-status";
+import { addActivityMemberForProject, mergeActivityMembers } from "@/lib/activity-member-scope";
 import { DevActivityPanel } from "@/components/dev-activity-panel";
+import { PerformanceEmailPanel } from "@/components/performance-email-panel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -141,11 +143,8 @@ export function TeamPerformancePage({ mode = "all" }: { mode?: "all" | "dev" | "
   }, [completionFilter, mode, projectFilter, query, roleFilter, stats, statusFilter]);
   const devGroups = useMemo(() => groupDevStats(filtered), [filtered]);
   const activityMembers = useMemo(() => {
-    const people = new Map(filtered.map((member) => {
-      const key = normalize(member.name);
-      return [key, { ...member, key }] as const;
-    }));
-    if (completionFilter !== "all") return [...people.values()];
+    const people = filtered.map((member) => ({ ...member, key: normalize(member.name), scopeProjectIds: [...(member.scopeProjectIds ?? [])] }));
+    if (completionFilter !== "all") return mergeActivityMembers(people);
     const needle = query.trim().toLowerCase();
     for (const project of projects) {
       if (projectFilter !== "all" && project.id !== projectFilter) continue;
@@ -158,12 +157,23 @@ export function TeamPerformancePage({ mode = "all" }: { mode?: "all" | "dev" | "
           const member = members.find((candidate) => normalize(candidate.name) === key);
           if (member && member.role !== "dev" && member.role !== "qa") continue;
           if (needle && !key.includes(needle) && !project.name.toLowerCase().includes(needle) && !member?.title?.toLowerCase().includes(needle)) continue;
-          if (!people.has(key)) people.set(key, emptyStats(person.name, member));
+          addActivityMemberForProject(people, key, project.id, () => {
+            const team = teams.find((candidate) => candidate.id === project.teamId);
+            const pmId = project.pmId || team?.pmId || members.find((candidate) => candidate.role === "pm" && normalize(candidate.name) === normalize(project.owner || ""))?.id;
+            const pmName = (pmId ? members.find((candidate) => candidate.id === pmId)?.name : undefined) || project.owner?.trim() || "Unassigned";
+            return {
+              ...emptyStats(person.name, member),
+              groupKey: `${pmId || normalize(pmName) || "unassigned"}:${team?.id || "no-team"}`,
+              teamName: team?.name || "No team assigned",
+              pmName,
+              scopeProjectIds: [project.id],
+            };
+          });
         }
       }
     }
-    return [...people.values()];
-  }, [filtered, completionFilter, query, projects, projectFilter, statusFilter, members]);
+    return mergeActivityMembers(people);
+  }, [filtered, completionFilter, query, projects, projectFilter, statusFilter, members, teams]);
   const filtersActive = projectFilter !== "all" || (mode === "all" && roleFilter !== "all") || statusFilter !== "all" || completionFilter !== "all" || Boolean(query);
   const totals = useMemo(
     () => ({
@@ -214,6 +224,7 @@ export function TeamPerformancePage({ mode = "all" }: { mode?: "all" | "dev" | "
       </section>
 
       {mode === "dev" && <TicketSyncStatus />}
+      {mode === "dev" && <PerformanceEmailPanel />}
 
 
       {loadError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><p>Performance data could not be loaded. Refresh to try again.</p><Button variant="outline" size="sm" onClick={() => window.location.reload()}>Refresh page</Button></div>}

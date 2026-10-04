@@ -1,0 +1,10 @@
+[Unit]
+Description=Send OpsDesk daily developer performance email
+Wants=network-online.target
+After=network-online.target opsdesk.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/opsdesk.env
+ExecStart=/usr/local/sbin/opsdesk-performance-email
+TimeoutStartSec=2min

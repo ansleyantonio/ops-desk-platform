@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -z "${PERFORMANCE_CRON_TOKEN:-}" ]]; then
+  echo 'PERFORMANCE_CRON_TOKEN is missing' >&2
+  exit 1
+fi
+curl --fail --silent --show-error --max-time 90 \
+  --request POST \
+  --header "Authorization: Bearer ${PERFORMANCE_CRON_TOKEN}" \
+  http://127.0.0.1:3000/api/performance-email/dispatch
